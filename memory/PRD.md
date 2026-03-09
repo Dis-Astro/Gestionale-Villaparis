@@ -12,17 +12,29 @@ Gestori di Villa Paris (location eventi).
 ### UI & Layout
 - [x] Layout AppShell (sidebar + topbar) unificato su tutte le pagine
 - [x] Navigazione coerente tra dashboard, calendario, eventi, clienti, report
+- [x] Breadcrumb con chiavi univoche (fix bug React key duplicata)
 
-### Funzionalità Core
+### Funzionalita Core
 - [x] Dashboard con KPI e statistiche
 - [x] Calendario eventi con appuntamenti rapidi (1-click)
+- [x] Calendario: Year picker (2024-2030) e input "Vai a data"
+- [x] Calendario: Tooltip hover con dettagli evento
+- [x] Calendario: Doppio click per aprire scheda completa
 - [x] Gestione eventi CRUD completa
 - [x] Menu Base - template con selezione piatti
 - [x] Piantina sala - drag & drop con varianti alimentari
 - [x] Stampe PDF - contratti e documenti operativi
-- [x] Report con export Excel
+- [x] Report con export Excel (multi-foglio: Report Aziendale + Anagrafica Clienti)
+- [x] Report: grafici (Ricavi/Eventi/Ospiti per mese, Eventi per tipo)
 - [x] Versioning - snapshot anti-contestazione
 - [x] Blocco automatico modifiche a -10 giorni
+
+### Anagrafica Clienti
+- [x] CRUD completo clienti
+- [x] Pulsanti rapidi canale contatto (Telefono, Mail, Matrimonio.com, Social, Passaparola, Altro)
+- [x] Sezione secondo contatto (nome, telefono, email) sempre visibile
+- [x] Export CSV clienti
+- [x] Ricerca clienti per nome, email, telefono, citta
 
 ### Database & Backend
 - [x] Migrazione da SQLite a PostgreSQL
@@ -36,14 +48,7 @@ Gestori di Villa Paris (location eventi).
 - [x] docker/entrypoint.sh per migrazioni automatiche all'avvio
 - [x] .env.example completo
 - [x] Script Proxmox one-liner (install-ct.sh + ct-setup.sh)
-- [x] Bug fix: stdout contaminato in download_template → tutti i log su stderr (>&2)
 - [x] GitHub Actions CI/CD deploy automatico (.github/workflows/deploy.yml)
-
-### Pulizia & Standardizzazione
-- [x] Rimossi tutti i riferimenti a "Emergent"
-- [x] Standardizzato su npm (rimosso yarn.lock)
-- [x] .gitignore pulito
-- [x] Struttura file organizzata
 
 ## Architettura
 
@@ -67,7 +72,7 @@ Gestori di Villa Paris (location eventi).
 │   └── lib/
 │       └── prisma.ts          # Singleton Prisma client
 ├── .env.example
-├── docker-compose.yml         # Usa ${POSTGRES_USER:-default}
+├── docker-compose.yml
 ├── Dockerfile
 └── README.md
 ```
@@ -84,9 +89,10 @@ Gestori di Villa Paris (location eventi).
 ### P1 - Upcoming
 - [ ] Pagina Impostazioni (attualmente placeholder)
 - [ ] Ripristino versione evento (API + UI button)
+- [ ] Webhook GitHub Actions per deploy continuo su Proxmox
 
 ### P2 - Backlog
-- [ ] CRUD Clienti migliorato
+- [ ] CRUD Clienti migliorato (filtri avanzati)
 - [ ] Fix doppio click su tavoli sovrapposti nella piantina
 
 ## One-Liner Proxmox
