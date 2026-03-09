@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
   Users, Plus, Search, Edit, Trash2, Download,
-  Mail, Phone, MapPin, Calendar, X, ChevronDown, ChevronUp, Save
+  Mail, Phone, MapPin, Calendar, X, Save
 } from 'lucide-react'
 
 // ──────────────────────────────────────────────────
@@ -35,7 +35,14 @@ interface Cliente {
 }
 
 const TIPI_CLIENTE = ['sposa', 'sposo', 'festeggiato', 'azienda', 'altro']
-const CANALI = ['passaparola', 'web', 'social', 'fiera', 'agenzia', 'altro']
+const CANALI = [
+  { value: 'telefono',        label: 'Telefono',        icon: '📞' },
+  { value: 'email',           label: 'Mail',            icon: '📧' },
+  { value: 'matrimonio.com',  label: 'Matrimonio.com',  icon: '💒' },
+  { value: 'social',          label: 'Social',          icon: '📱' },
+  { value: 'passaparola',     label: 'Passaparola',     icon: '🗣️' },
+  { value: 'altro',           label: 'Altro',           icon: '•'  },
+]
 
 const vuotoCliente = (): Omit<Cliente, 'id' | 'eventi'> => ({
   nome: '', cognome: '', email: '', telefono: '', telefonoAlt: '',
@@ -61,9 +68,8 @@ function ClienteForm({
   )
   const [saving, setSaving] = useState(false)
   const [errore, setErrore] = useState('')
-  const [showSecondo, setShowSecondo] = useState(
-    !!(cliente?.secondoContattoNome || cliente?.secondoContattoTelefono)
-  )
+  // Secondo contatto sempre espanso (l'utente può compilarlo liberamente)
+  const [showSecondo, setShowSecondo] = useState(true)
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -156,27 +162,50 @@ function ClienteForm({
             <h3 className="text-sm font-semibold text-gray-700 mb-3 pb-1 border-b">Classificazione Commerciale</h3>
             <div className="grid grid-cols-2 gap-3">
               <Select label="Tipo Cliente" k="tipoCliente" options={TIPI_CLIENTE} />
-              <Select label="Come ci ha trovato" k="canalePrimoContatto" options={CANALI} />
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  Come ci ha contattato <span className="text-gray-400">(tocca per selezionare)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {CANALI.map(c => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, canalePrimoContatto: f.canalePrimoContatto === c.value ? '' : c.value }))}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-all ${
+                        form.canalePrimoContatto === c.value
+                          ? 'border-amber-500 bg-amber-500 text-white shadow-sm scale-105'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:bg-amber-50'
+                      }`}
+                    >
+                      <span>{c.icon}</span>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="col-span-2">
                 <Field label="Data Primo Contatto" k="dataPrimoContatto" type="date" />
               </div>
             </div>
           </section>
 
-          {/* Secondo contatto (collassabile) */}
+          {/* Secondo contatto */}
           <section>
-            <button
-              type="button"
-              onClick={() => setShowSecondo(s => !s)}
-              className="flex items-center gap-2 text-sm font-semibold text-gray-700 w-full pb-1 border-b"
-            >
-              {showSecondo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              Secondo Contatto (es. sposo/sposa)
-            </button>
+            <div className="flex items-center justify-between pb-1 border-b mb-3">
+              <h3 className="text-sm font-semibold text-gray-700">Secondo Contatto (es. sposo/sposa/familiare)</h3>
+              <button
+                type="button"
+                onClick={() => setShowSecondo(s => !s)}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                {showSecondo ? 'Nascondi' : 'Mostra'}
+              </button>
+            </div>
             {showSecondo && (
-              <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <Field label="Nome Secondo Contatto" k="secondoContattoNome" />
+                  <Field label="Nome e Cognome Secondo Contatto" k="secondoContattoNome" />
                 </div>
                 <Field label="Telefono" k="secondoContattoTelefono" />
                 <Field label="Email" k="secondoContattoEmail" type="email" />
@@ -436,7 +465,9 @@ export default function ClientiPage() {
                     </div>
                   )}
                   {c.canalePrimoContatto && (
-                    <div className="text-xs text-gray-400 ml-5 capitalize">{c.canalePrimoContatto}</div>
+                    <div className="text-xs text-gray-400 ml-5 capitalize">
+                      {CANALI.find(k => k.value === c.canalePrimoContatto)?.icon || ''} {CANALI.find(k => k.value === c.canalePrimoContatto)?.label || c.canalePrimoContatto}
+                    </div>
                   )}
                   {c.secondoContattoNome && (
                     <div className="mt-2 pt-2 border-t text-xs text-gray-500">

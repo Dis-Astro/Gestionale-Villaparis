@@ -62,6 +62,10 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   }
 
   const breadcrumbs = buildBreadcrumb()
+  // De-duplicate crumbs con la stessa href (es. /dashboard appare come Home e Dashboard)
+  const uniqueCrumbs = breadcrumbs.filter((c, i, arr) =>
+    i === 0 || arr.findIndex(x => x.href === c.href) === i
+  )
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,8 +92,8 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
           {/* Breadcrumb (hidden on mobile) */}
           <nav className="hidden md:flex items-center gap-1 text-sm" aria-label="Breadcrumb">
-            {breadcrumbs.map((crumb, index) => (
-              <div key={crumb.href} className="flex items-center">
+            {uniqueCrumbs.map((crumb, index) => (
+              <div key={`${index}-${crumb.href}`} className="flex items-center">
                 {index > 0 && (
                   <ChevronRight className="w-4 h-4 text-gray-400 mx-1" />
                 )}
@@ -100,7 +104,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                   >
                     <Home className="w-4 h-4 text-gray-500" />
                   </button>
-                ) : index === breadcrumbs.length - 1 ? (
+                ) : index === uniqueCrumbs.length - 1 ? (
                   <span className="font-medium text-gray-900">{crumb.label}</span>
                 ) : (
                   <button
@@ -116,7 +120,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
           {/* Mobile: Current page title */}
           <h1 className="md:hidden font-semibold text-gray-900 truncate">
-            {breadcrumbs[breadcrumbs.length - 1]?.label || 'Villa Paris'}
+            {uniqueCrumbs[uniqueCrumbs.length - 1]?.label || 'Villa Paris'}
           </h1>
         </div>
 

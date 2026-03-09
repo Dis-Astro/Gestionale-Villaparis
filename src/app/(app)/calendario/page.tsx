@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
@@ -9,68 +9,135 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
-  Calendar, Plus, Edit, Trash2, CalendarOff,
-  UserPlus, X, Phone, Mail, Clock, Users
+  Calendar, Plus, Edit, Trash2, UserPlus,
+  X, Phone, Mail, Clock, Users, ChevronLeft, ChevronRight
 } from "lucide-react"
 
 // ──────────────────────────────────────────────────
-// SCHEMA COLORI CALENDARIO
+// SCHEMA COLORI
 // ──────────────────────────────────────────────────
-const COLORI = {
-  registrazione:  { bg: '#92400E', text: 'bg-amber-900',  label: 'Registrazione 1° contatto' },
-  opzionato:      { bg: '#F59E0B', text: 'bg-amber-400',   label: 'Data opzionata'             },
-  confermato:     { bg: '#10B981', text: 'bg-emerald-500', label: 'Confermato'                 },
-  appuntamento:   { bg: '#8B5CF6', text: 'bg-violet-500',  label: 'Appuntamento'               },
-  matrimonio:     { bg: '#3B82F6', text: 'bg-blue-500',    label: 'Matrimonio'                 },
-  battesimo:      { bg: '#EC4899', text: 'bg-pink-500',    label: 'Battesimo'                  },
-  compleanno:     { bg: '#F97316', text: 'bg-orange-500',  label: 'Compleanno'                 },
-  comunione:      { bg: '#06B6D4', text: 'bg-cyan-500',    label: 'Comunione'                  },
-  cresima:        { bg: '#6366F1', text: 'bg-indigo-500',  label: 'Cresima'                    },
-  aziendale:      { bg: '#64748B', text: 'bg-slate-500',   label: 'Aziendale'                  },
-  altro:          { bg: '#6B7280', text: 'bg-gray-500',    label: 'Altro'                      },
+const COLORI: Record<string, { bg: string; label: string }> = {
+  registrazione:  { bg: '#92400E', label: 'Registrazione 1° contatto' },
+  opzionato:      { bg: '#F59E0B', label: 'Data opzionata'            },
+  confermato:     { bg: '#10B981', label: 'Confermato'                },
+  appuntamento:   { bg: '#8B5CF6', label: 'Appuntamento'              },
+  matrimonio:     { bg: '#3B82F6', label: 'Matrimonio'                },
+  battesimo:      { bg: '#EC4899', label: 'Battesimo'                 },
+  compleanno:     { bg: '#F97316', label: 'Compleanno'                },
+  comunione:      { bg: '#06B6D4', label: 'Comunione'                 },
+  cresima:        { bg: '#6366F1', label: 'Cresima'                   },
+  aziendale:      { bg: '#64748B', label: 'Aziendale'                 },
+  altro:          { bg: '#6B7280', label: 'Altro'                     },
 }
 
-function colorePerTipo(tipo: string, ruolo: 'confermato' | 'opzionato' | 'registrazione' | 'appuntamento'): string {
+function colorePerTipo(tipo: string, ruolo: string): string {
   if (ruolo === 'registrazione') return COLORI.registrazione.bg
   if (ruolo === 'opzionato')     return COLORI.opzionato.bg
   if (ruolo === 'appuntamento')  return COLORI.appuntamento.bg
   const t = tipo.toLowerCase()
-  if (t.includes('matrimon'))   return COLORI.matrimonio.bg
-  if (t.includes('battesim'))   return COLORI.battesimo.bg
-  if (t.includes('complea'))    return COLORI.compleanno.bg
-  if (t.includes('comuni'))     return COLORI.comunione.bg
-  if (t.includes('cresim'))     return COLORI.cresima.bg
-  if (t.includes('aziendale'))  return COLORI.aziendale.bg
+  if (t.includes('matrimon'))  return COLORI.matrimonio.bg
+  if (t.includes('battesim'))  return COLORI.battesimo.bg
+  if (t.includes('complea'))   return COLORI.compleanno.bg
+  if (t.includes('comuni'))    return COLORI.comunione.bg
+  if (t.includes('cresim'))    return COLORI.cresima.bg
+  if (t.includes('aziendale')) return COLORI.aziendale.bg
   return COLORI.confermato.bg
 }
 
+// ──────────────────────────────────────────────────
+// TOOLTIP COMPONENT
+// ──────────────────────────────────────────────────
+interface TooltipInfo {
+  evento: any
+  x: number
+  y: number
+  ruolo: string
+}
+
+function EventTooltip({ info, onClose }: { info: TooltipInfo; onClose: () => void }) {
+  const { evento, x, y, ruolo } = info
+  const cp = evento.clienti?.[0]?.cliente
+  const col = colorePerTipo(evento.tipo, ruolo)
+
+  // Posizionamento adattivo: non uscire dalla viewport
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    left:  Math.min(x + 12, window.innerWidth - 280),
+    top:   y + 12 > window.innerHeight - 180 ? y - 170 : y + 12,
+    zIndex: 9999,
+    minWidth: 240,
+    pointerEvents: 'none',
+  }
+
+  return (
+    <div style={style} className="bg-white border border-gray-200 rounded-xl shadow-xl p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: col }} />
+        <span className="font-semibold text-sm text-gray-900 truncate">{evento.titolo}</span>
+      </div>
+      <div className="space-y-1 text-xs text-gray-600">
+        {ruolo !== 'registrazione' && (
+          <p><span className="font-medium">Tipo:</span> {evento.tipo}</p>
+        )}
+        {ruolo === 'registrazione' && (
+          <p className="text-amber-700 font-medium">📋 Registrazione 1° contatto</p>
+        )}
+        {ruolo === 'opzionato' && (
+          <p className="text-amber-600 font-medium">⏳ Data opzionata</p>
+        )}
+        {evento.dataConfermata && ruolo !== 'opzionato' && ruolo !== 'registrazione' && (
+          <p><span className="font-medium">Data:</span> {new Date(evento.dataConfermata + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        )}
+        {evento.personePreviste > 0 && (
+          <p><span className="font-medium">Ospiti:</span> {evento.personePreviste}</p>
+        )}
+        {cp && (
+          <p><span className="font-medium">Referente:</span> {cp.nome} {cp.cognome || ''}</p>
+        )}
+        {cp?.telefono && (
+          <p><span className="font-medium">Tel:</span> {cp.telefono}</p>
+        )}
+        {evento.stato && (
+          <p><span className="font-medium">Stato:</span> {evento.stato.replace('_', ' ')}</p>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 mt-2 border-t pt-1">Doppio click per aprire scheda completa</p>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────
+// PAGINA PRINCIPALE
+// ──────────────────────────────────────────────────
 export default function CalendarioPage() {
   const router = useRouter()
+  const calendarRef = useRef<any>(null)
   const [dataSelezionata, setDataSelezionata] = useState("")
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [eventi, setEventi] = useState<any[]>([])
   const [eventiDelGiorno, setEventiDelGiorno] = useState<any[]>([])
   const [calendarKey, setCalendarKey] = useState(0)
-  const [dateNascoste, setDateNascoste] = useState<string[]>([])
+
+  // Tooltip hover
+  const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
+
+  // Track doppio-click
+  const lastClickRef = useRef<{ id: number; time: number } | null>(null)
 
   // Modal appuntamento rapido
   const [showAppuntamento, setShowAppuntamento] = useState(false)
-  const [appuntamento, setAppuntamento] = useState({
-    nome: '', telefono: '', email: '', ora: '10:00', note: ''
-  })
+  const [appuntamento, setAppuntamento] = useState({ nome: '', telefono: '', email: '', ora: '10:00', note: '' })
   const [isSaving, setIsSaving] = useState(false)
   const [status, setStatus] = useState('')
 
-  // Statistiche
   const appuntamentiMese = eventi.filter(e => {
     if (e.tipo !== 'Appuntamento') return false
-    const d = e.dataConfermata || e.dateProposte?.[0]
-    if (!d) return false
+    const d = e.dataConfermata; if (!d) return false
     const dt = new Date(d); const now = new Date()
     return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear()
   }).length
-  const appuntamentiAnno = eventi.filter(e => e.tipo === 'Appuntamento').length
 
-  const fetchEventi = () => {
+  const fetchEventi = useCallback(() => {
     fetch("/api/eventi")
       .then(r => r.json())
       .then(data => {
@@ -85,84 +152,124 @@ export default function CalendarioPage() {
         setEventi(parsed)
       })
       .catch(() => {})
-  }
+  }, [])
 
-  useEffect(() => { fetchEventi() }, [calendarKey])
+  useEffect(() => { fetchEventi() }, [fetchEventi, calendarKey])
 
   const handleDateClick = (arg: any) => {
     const data = arg.dateStr
     setDataSelezionata(data)
-    filtraEventiPerData(data, eventi)
-    setShowAppuntamento(true)
-    setAppuntamento({ nome: '', telefono: '', email: '', ora: '10:00', note: '' })
-    setStatus('')
-  }
-
-  const filtraEventiPerData = (data: string, evs: any[]) => {
-    const res = evs.filter(e =>
+    const evGiorno = eventi.filter(e =>
       e.dataConfermata === data ||
       e.dataPrimoContatto === data ||
       (Array.isArray(e.dateProposte) && e.dateProposte.includes(data))
     )
-    setEventiDelGiorno(res)
+    setEventiDelGiorno(evGiorno)
+    if (evGiorno.length === 0) {
+      setShowAppuntamento(true)
+      setAppuntamento({ nome: '', telefono: '', email: '', ora: '10:00', note: '' })
+      setStatus('')
+    }
   }
 
   // ──────────────────────────────────────────────────
-  // Costruzione eventi FullCalendar con colori distinti
+  // EVENTI FULLCALENDAR
   // ──────────────────────────────────────────────────
   const eventiCalendario = eventi.flatMap((ev) => {
     if (ev.stato === 'annullato') return []
     const result: any[] = []
 
-    // 1. Data primo contatto → "Registrazione"
-    if (ev.dataPrimoContatto && !dateNascoste.includes(ev.dataPrimoContatto)) {
+    if (ev.dataPrimoContatto) {
       result.push({
-        title: `\u{1F4CB} ${ev.titolo}`,
+        id: `reg-${ev.id}`,
+        title: `📋 ${ev.titolo}`,
         date: ev.dataPrimoContatto,
-        color: COLORI.registrazione.bg,
-        extendedProps: { eventoId: ev.id, ruolo: 'registrazione' },
-        classNames: ['fc-event-reg']
+        backgroundColor: COLORI.registrazione.bg,
+        borderColor: COLORI.registrazione.bg,
+        extendedProps: { eventoId: ev.id, ruolo: 'registrazione', ev }
       })
     }
 
-    // 2. Date opzionate
     if (Array.isArray(ev.dateProposte)) {
       ev.dateProposte
-        .filter((d: string) => d !== ev.dataConfermata && !dateNascoste.includes(d))
+        .filter((d: string) => d !== ev.dataConfermata)
         .forEach((d: string) => {
           result.push({
+            id: `op-${ev.id}-${d}`,
             title: ev.titolo,
             date: d,
-            color: COLORI.opzionato.bg,
-            extendedProps: { eventoId: ev.id, ruolo: 'opzionato' },
-            classNames: ['opacity-80']
+            backgroundColor: COLORI.opzionato.bg,
+            borderColor: COLORI.opzionato.bg,
+            classNames: ['opacity-90'],
+            extendedProps: { eventoId: ev.id, ruolo: 'opzionato', ev }
           })
         })
     }
 
-    // 3. Data confermata (o appuntamento)
-    if (ev.dataConfermata && !dateNascoste.includes(ev.dataConfermata)) {
+    if (ev.dataConfermata) {
       const ruolo = ev.tipo === 'Appuntamento' ? 'appuntamento' : 'confermato'
-      const prefix = ev.tipo === 'Appuntamento' ? '\u{260E} ' : ''
+      const color = colorePerTipo(ev.tipo, ruolo)
       result.push({
-        title: `${prefix}${ev.titolo}`,
+        id: `conf-${ev.id}`,
+        title: ev.tipo === 'Appuntamento' ? `📞 ${ev.titolo}` : ev.titolo,
         date: ev.dataConfermata,
-        color: colorePerTipo(ev.tipo, ruolo),
-        extendedProps: { eventoId: ev.id, ruolo }
+        backgroundColor: color,
+        borderColor: color,
+        extendedProps: { eventoId: ev.id, ruolo, ev }
       })
     }
 
     return result
   })
 
-  const annullaEvento = async (id: number) => {
-    if (!confirm('Annullare questo evento?')) return
-    await fetch(`/api/eventi?id=${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stato: 'annullato' })
+  // Hover tooltip
+  const handleEventMouseEnter = (info: any) => {
+    const ev = info.event.extendedProps.ev || eventi.find(e => e.id === info.event.extendedProps.eventoId)
+    if (!ev) return
+    const rect = info.el.getBoundingClientRect()
+    setTooltip({
+      evento: ev,
+      ruolo: info.event.extendedProps.ruolo,
+      x: rect.left + rect.width / 2,
+      y: rect.bottom
     })
-    setCalendarKey(k => k + 1)
+  }
+  const handleEventMouseLeave = () => setTooltip(null)
+
+  // Click singolo / doppio click
+  const handleEventClick = (info: any) => {
+    const eventoId = info.event.extendedProps.eventoId
+    const now = Date.now()
+    const last = lastClickRef.current
+
+    if (last && last.id === eventoId && now - last.time < 400) {
+      // Doppio click → apri scheda completa
+      router.push(`/modifica-evento/${eventoId}`)
+      lastClickRef.current = null
+    } else {
+      lastClickRef.current = { id: eventoId, time: now }
+      // Singolo click → mostra eventi del giorno
+      const ev = info.event.extendedProps.ev || eventi.find(e => e.id === eventoId)
+      if (ev) {
+        const data = ev.dataConfermata || ev.dataPrimoContatto || ev.dateProposte?.[0]
+        if (data) {
+          setDataSelezionata(data)
+          setEventiDelGiorno(eventi.filter(e =>
+            e.dataConfermata === data ||
+            e.dataPrimoContatto === data ||
+            (Array.isArray(e.dateProposte) && e.dateProposte.includes(data))
+          ))
+        }
+      }
+    }
+    setTooltip(null)
+  }
+
+  // Year navigator
+  const goToYear = (year: number) => {
+    setCurrentYear(year)
+    const cal = calendarRef.current?.getApi()
+    if (cal) cal.gotoDate(`${year}-01-01`)
   }
 
   const salvaAppuntamento = async () => {
@@ -183,7 +290,7 @@ export default function CalendarioPage() {
           note: `Ora: ${appuntamento.ora}\nTelefono: ${appuntamento.telefono}\n${appuntamento.note}`,
           clienti: [{
             nome: appuntamento.nome,
-            email: appuntamento.email || `${appuntamento.nome.toLowerCase().replace(/\s+/g, '.')}@appuntamento.local`,
+            email: appuntamento.email || `appuntamento@villa-paris.local`,
             telefono: appuntamento.telefono
           }]
         })
@@ -191,20 +298,31 @@ export default function CalendarioPage() {
       if (res.ok) {
         setStatus('Appuntamento salvato!')
         setTimeout(() => { setShowAppuntamento(false); setCalendarKey(k => k + 1) }, 900)
-      } else {
-        setStatus(`Errore: ${await res.text()}`)
-      }
+      } else { setStatus(`Errore: ${await res.text()}`) }
     } catch { setStatus('Errore di connessione') }
     finally { setIsSaving(false) }
   }
 
+  const annullaEvento = async (id: number) => {
+    if (!confirm('Annullare questo evento?')) return
+    await fetch(`/api/eventi?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stato: 'annullato' })
+    })
+    setCalendarKey(k => k + 1)
+  }
+
   const statoLabel = (stato: string) => {
     switch (stato) {
-      case 'confermato': return { text: 'Confermato', cls: 'bg-green-100 text-green-700' }
-      case 'annullato':  return { text: 'Annullato',  cls: 'bg-red-100 text-red-700'   }
-      default:           return { text: 'In attesa',  cls: 'bg-amber-100 text-amber-700'}
+      case 'confermato': return 'bg-green-100 text-green-700'
+      case 'annullato':  return 'bg-red-100 text-red-700'
+      default:           return 'bg-amber-100 text-amber-700'
     }
   }
+
+  // Range anni disponibili
+  const anni = Array.from({ length: 7 }, (_, i) => new Date().getFullYear() - 2 + i)
 
   return (
     <div className="space-y-6" data-testid="calendario-page">
@@ -215,31 +333,12 @@ export default function CalendarioPage() {
             <Calendar className="w-7 h-7 text-amber-500" />
             Calendario Eventi
           </h1>
-          <p className="text-gray-500">Clicca su una data per creare un appuntamento</p>
+          <p className="text-gray-500 text-sm">Clicca su data per appuntamento · Doppio click sull'evento per aprirlo</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="hidden sm:flex items-center gap-3 text-sm">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 rounded-full">
-              <Phone className="w-3.5 h-3.5 text-violet-600" />
-              <span className="text-violet-700 font-medium">{appuntamentiMese} questo mese</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-full">
-              <Users className="w-3.5 h-3.5 text-gray-600" />
-              <span className="text-gray-700 font-medium">{appuntamentiAnno} anno</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Vai a:</label>
-            <input
-              type="date"
-              className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500"
-              value={dataSelezionata}
-              onChange={e => {
-                setDataSelezionata(e.target.value)
-                setCalendarKey(k => k + 1)
-                filtraEventiPerData(e.target.value, eventi)
-              }}
-            />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 rounded-full">
+            <Phone className="w-3.5 h-3.5 text-violet-600" />
+            <span className="text-violet-700 font-medium text-sm">{appuntamentiMese} questo mese</span>
           </div>
           <Button
             onClick={() => router.push('/nuovo-evento')}
@@ -252,15 +351,59 @@ export default function CalendarioPage() {
         </div>
       </div>
 
+      {/* Quick Year Navigator */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-gray-600 mr-1">Anno:</span>
+            {anni.map(y => (
+              <button
+                key={y}
+                onClick={() => goToYear(y)}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                  y === currentYear
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700'
+                }`}
+              >
+                {y}
+              </button>
+            ))}
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm text-gray-500">Vai a data:</span>
+              <input
+                type="date"
+                className="border rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-amber-500"
+                value={dataSelezionata}
+                onChange={e => {
+                  const val = e.target.value
+                  setDataSelezionata(val)
+                  if (val) {
+                    const y = new Date(val).getFullYear()
+                    setCurrentYear(y)
+                    const cal = calendarRef.current?.getApi()
+                    if (cal) cal.gotoDate(val)
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Calendario */}
       <Card>
         <CardContent className="p-4">
           <FullCalendar
+            ref={calendarRef}
             key={calendarKey}
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
-            initialDate={dataSelezionata || undefined}
+            initialDate={dataSelezionata || `${currentYear}-01-01`}
             dateClick={handleDateClick}
+            eventMouseEnter={handleEventMouseEnter}
+            eventMouseLeave={handleEventMouseLeave}
+            eventClick={handleEventClick}
             locale="it"
             height="auto"
             events={eventiCalendario}
@@ -270,16 +413,20 @@ export default function CalendarioPage() {
               right: 'dayGridMonth,dayGridWeek'
             }}
             buttonText={{ today: 'Oggi', month: 'Mese', week: 'Settimana' }}
+            datesSet={(arg) => setCurrentYear(arg.view.currentStart.getFullYear())}
           />
         </CardContent>
       </Card>
+
+      {/* Tooltip */}
+      {tooltip && <EventTooltip info={tooltip} onClose={() => setTooltip(null)} />}
 
       {/* Modal Appuntamento Rapido */}
       {showAppuntamento && dataSelezionata && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md" data-testid="modal-appuntamento">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <UserPlus className="w-5 h-5 text-violet-500" />
                 Nuovo Appuntamento
               </CardTitle>
@@ -287,99 +434,50 @@ export default function CalendarioPage() {
                 <X className="w-4 h-4" />
               </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-violet-50 p-3 rounded-lg text-center">
-                <p className="text-violet-700 font-medium">
+            <CardContent className="space-y-3">
+              <div className="bg-violet-50 p-2.5 rounded-lg text-center">
+                <p className="text-violet-700 font-medium text-sm">
                   {new Date(dataSelezionata + 'T12:00:00').toLocaleDateString('it-IT', {
                     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
                   })}
                 </p>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome Cliente *</label>
-                <Input
-                  value={appuntamento.nome}
-                  onChange={e => setAppuntamento({ ...appuntamento, nome: e.target.value })}
-                  placeholder="Mario Rossi"
-                  autoFocus
-                />
+                <Input value={appuntamento.nome} onChange={e => setAppuntamento({ ...appuntamento, nome: e.target.value })} placeholder="Mario Rossi" autoFocus />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Phone className="w-3.5 h-3.5 inline mr-1" />Telefono
-                  </label>
-                  <Input
-                    value={appuntamento.telefono}
-                    onChange={e => setAppuntamento({ ...appuntamento, telefono: e.target.value })}
-                    placeholder="333 1234567"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1"><Phone className="w-3.5 h-3.5 inline mr-1" />Telefono</label>
+                  <Input value={appuntamento.telefono} onChange={e => setAppuntamento({ ...appuntamento, telefono: e.target.value })} placeholder="333 1234567" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Clock className="w-3.5 h-3.5 inline mr-1" />Ora
-                  </label>
-                  <Input
-                    type="time"
-                    value={appuntamento.ora}
-                    onChange={e => setAppuntamento({ ...appuntamento, ora: e.target.value })}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1"><Clock className="w-3.5 h-3.5 inline mr-1" />Ora</label>
+                  <Input type="time" value={appuntamento.ora} onChange={e => setAppuntamento({ ...appuntamento, ora: e.target.value })} />
                 </div>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <Mail className="w-3.5 h-3.5 inline mr-1" />Email (opzionale)
-                </label>
-                <Input
-                  type="email"
-                  value={appuntamento.email}
-                  onChange={e => setAppuntamento({ ...appuntamento, email: e.target.value })}
-                  placeholder="mario@email.com"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1"><Mail className="w-3.5 h-3.5 inline mr-1" />Email</label>
+                <Input type="email" value={appuntamento.email} onChange={e => setAppuntamento({ ...appuntamento, email: e.target.value })} placeholder="mario@email.com" />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-                <Input
-                  value={appuntamento.note}
-                  onChange={e => setAppuntamento({ ...appuntamento, note: e.target.value })}
-                  placeholder="Tipo evento, preferenze..."
-                />
+                <Input value={appuntamento.note} onChange={e => setAppuntamento({ ...appuntamento, note: e.target.value })} placeholder="Tipo evento, preferenze..." />
               </div>
-
               {status && (
-                <div className={`px-4 py-2 rounded-lg text-sm ${
-                  status.includes('salvato') ? 'bg-green-50 text-green-700' :
-                  status.includes('Errore') ? 'bg-red-50 text-red-700' :
-                  'bg-blue-50 text-blue-700'
-                }`}>
+                <div className={`px-3 py-2 rounded-lg text-sm ${status.includes('salvato') ? 'bg-green-50 text-green-700' : status.includes('Errore') ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
                   {status}
                 </div>
               )}
-
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => setShowAppuntamento(false)}>
-                  Annulla
-                </Button>
-                <Button
-                  onClick={salvaAppuntamento}
-                  disabled={isSaving}
-                  className="flex-1 bg-violet-500 hover:bg-violet-600"
-                  data-testid="salva-appuntamento-btn"
-                >
+              <div className="flex gap-3 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setShowAppuntamento(false)}>Annulla</Button>
+                <Button onClick={salvaAppuntamento} disabled={isSaving} className="flex-1 bg-violet-500 hover:bg-violet-600" data-testid="salva-appuntamento-btn">
                   {isSaving ? 'Salvataggio...' : 'Conferma'}
                 </Button>
               </div>
-
               <div className="text-center">
-                <Button
-                  variant="link" size="sm"
-                  onClick={() => { setShowAppuntamento(false); router.push(`/nuovo-evento?data=${dataSelezionata}`) }}
-                >
-                  Oppure crea un evento completo →
+                <Button variant="link" size="sm" onClick={() => { setShowAppuntamento(false); router.push(`/nuovo-evento?data=${dataSelezionata}`) }}>
+                  Crea evento completo →
                 </Button>
               </div>
             </CardContent>
@@ -387,68 +485,78 @@ export default function CalendarioPage() {
         </div>
       )}
 
-      {/* Eventi del giorno */}
+      {/* Pannello eventi del giorno (click su data con eventi) */}
       {dataSelezionata && eventiDelGiorno.length > 0 && !showAppuntamento && (
         <Card data-testid="eventi-giorno">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-amber-500" />
-              {new Date(dataSelezionata + 'T12:00:00').toLocaleDateString('it-IT', {
-                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-              })}
-            </CardTitle>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-amber-500" />
+                {new Date(dataSelezionata + 'T12:00:00').toLocaleDateString('it-IT', {
+                  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                })}
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setShowAppuntamento(true)}>
+                  <Plus className="w-3.5 h-3.5 mr-1" />Appuntamento
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEventiDelGiorno([])}>
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {eventiDelGiorno.map(e => {
-                const info = statoLabel(e.stato)
-                const isReg = e.dataPrimoContatto === dataSelezionata && e.dataConfermata !== dataSelezionata
-                const isOp  = Array.isArray(e.dateProposte) && e.dateProposte.includes(dataSelezionata) && e.dataConfermata !== dataSelezionata
-                const ruolo = isReg ? 'registrazione' : isOp ? 'opzionato' : e.tipo === 'Appuntamento' ? 'appuntamento' : 'confermato'
-                const dot   = colorePerTipo(e.tipo, ruolo)
-                return (
-                  <div key={`${e.id}-${ruolo}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: dot }} />
-                      <div>
-                        <p className="font-medium text-sm text-gray-900">
-                          {e.tipo === 'Appuntamento' ? '📞 ' : isReg ? '📋 ' : ''}{e.titolo}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-500">{e.tipo}</span>
-                          {isReg && <span className="text-xs bg-amber-900/10 text-amber-800 px-1.5 py-0.5 rounded">1° contatto</span>}
-                          {isOp  && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">opzionato</span>}
-                        </div>
+          <CardContent className="space-y-2">
+            {eventiDelGiorno.map((e) => {
+              const isReg = e.dataPrimoContatto === dataSelezionata && e.dataConfermata !== dataSelezionata
+              const isOp  = Array.isArray(e.dateProposte) && e.dateProposte.includes(dataSelezionata) && e.dataConfermata !== dataSelezionata
+              const ruolo = isReg ? 'registrazione' : isOp ? 'opzionato' : e.tipo === 'Appuntamento' ? 'appuntamento' : 'confermato'
+              const dot   = colorePerTipo(e.tipo, ruolo)
+              const cp    = e.clienti?.[0]?.cliente
+              return (
+                <div key={`${e.id}-${ruolo}`} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="w-3 h-3 rounded-full mt-0.5 flex-shrink-0" style={{ backgroundColor: dot }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-gray-900 truncate">
+                        {isReg ? '📋 ' : e.tipo === 'Appuntamento' ? '📞 ' : ''}{e.titolo}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-gray-500">{e.tipo}</span>
+                        {isReg && <span className="text-xs bg-amber-900/10 text-amber-800 px-1.5 py-0.5 rounded-full">1° contatto</span>}
+                        {isOp  && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">opzionato</span>}
+                        {e.personePreviste > 0 && <span className="text-xs text-gray-400">{e.personePreviste} ospiti</span>}
+                        {cp?.telefono && <span className="text-xs text-gray-400">{cp.telefono}</span>}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${info.cls}`}>{info.text}</span>
-                      <Button variant="ghost" size="sm" onClick={() => router.push(`/modifica-evento/${e.id}`)}>
-                        <Edit className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-600"
-                        onClick={() => annullaEvento(e.id)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
                   </div>
-                )
-              })}
-            </div>
+                  <div className="flex items-center gap-1 ml-2">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statoLabel(e.stato)}`}>
+                      {e.stato?.replace('_', ' ')}
+                    </span>
+                    <Button variant="ghost" size="sm" className="w-7 h-7 p-0" onClick={() => router.push(`/modifica-evento/${e.id}`)}>
+                      <Edit className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="w-7 h-7 p-0 text-red-400 hover:text-red-600"
+                      onClick={() => annullaEvento(e.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
           </CardContent>
         </Card>
       )}
 
       {/* Legenda */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Legenda Calendario</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <CardContent className="p-3">
+          <p className="text-xs font-medium text-gray-600 mb-2">Legenda:</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5">
             {Object.entries(COLORI).map(([key, val]) => (
-              <div key={key} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: val.bg }} />
+              <div key={key} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: val.bg }} />
                 <span className="text-xs text-gray-600">{val.label}</span>
               </div>
             ))}

@@ -1,298 +1,177 @@
 <analysis>**original_problem_statement:**
-L'utente vuole finalizzare un'applicazione di gestione eventi per Villa Paris, rendendola finita, pulita, e facilmente deployabile.
+L'utente vuole finalizzare un'applicazione di gestione eventi per Villa Paris.
 
-**Requisiti principali:**
-1.  **Unificazione UI:** Applicare il layout  (sidebar + topbar) a *tutte* le pagine per un'esperienza utente coerente.
-2.  **Correzione Funzionalità:** Sistemare le sezioni non funzionanti (Impostazioni, menù base) e i problemi di navigazione (es. indietro dal calendario).
-3.  **Implementazione Funzionalità Mancanti:**
-    *   **Menu Base:** Creare un sistema di template per i menù, con selezione a checkbox e piatti personalizzati.
-    *   **Appuntamento Rapido:** Aggiungere sul calendario una funzione one-touch per creare appuntamenti, con annessa statistica sulla dashboard.
-4.  **Cleanup e Standardizzazione:** Rimuovere ogni traccia di Emergent dal codice, standardizzare l'uso di npm <command>
-
-Usage:
-
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
-
-All commands:
-
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, hook, init, install, install-ci-test,
-    install-test, link, ll, login, logout, ls, org, outdated,
-    owner, pack, ping, pkg, prefix, profile, prune, publish,
-    query, rebuild, repo, restart, root, run-script, sbom,
-    search, set, shrinkwrap, star, stars, start, stop, team,
-    test, token, uninstall, unpublish, unstar, update, version,
-    view, whoami
-
-Specify configs in the ini-formatted file:
-    /root/.npmrc
-or on the command line via: npm <command> --key=value
-
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@10.8.2 /usr/lib/node_modules/npm (rimuovendo yarn install v1.22.22
-info No lockfile found.
-[1/4] Resolving packages...
-[2/4] Fetching packages...
-[3/4] Linking dependencies...
-[4/4] Building fresh packages...
-success Saved lockfile.
-Done in 37.73s.), pulire il  e la struttura dei file.
-5.  **Migrazione a PostgreSQL e Docker:** Abbandonare SQLite, migrare a PostgreSQL e creare una configurazione Docker (, ) a prova di bomba che funzioni al primo colpo ().
-6.  **Installer One-Liner per Proxmox:** Creare uno script da eseguire sul nodo Proxmox che automaticamente:
-    *   Crea un nuovo container LXC (con nesting abilitato).
-    *   Installa Docker e Docker Compose al suo interno.
-    *   Clona il repository.
-    *   Avvia l'applicazione usando .
+**Requisiti principali dell'ultima richiesta utente:**
+1.  **Correzione Download Report:** Il download del report non funziona. L'utente ha fornito un file Excel di riferimento con il formato corretto.
+2.  **Anagrafica Cliente:**
+    *   Risolvere il problema che impedisce l'inserimento dei dati della seconda persona.
+    *   Aggiungere pulsanti di scelta rapida per il canale di contatto: Telefono, Mail, Matrimonio.com, Social, altro.
+3.  **Calendario & Date:**
+    *   Nel selettore di date, aggiungere la possibilità di scegliere rapidamente l'anno e di inserire una data manualmente.
+    *   Sul calendario, visualizzare correttamente gli eventi, mostrando dettagli al passaggio del mouse (o al tocco) e aprendo la scheda completa con un doppio click (o doppio tocco).
+4.  **Correzione Bug UI:**
+    *   Risolvere l'errore React in console: .
 
 **User's preferred language**: Italiano
 
 **what currently exists?**
-L'applicazione è stata quasi completamente rifattorizzata. L'intera UI è stata unificata sotto un layout . Il repository è stato ripulito da file inutili e riferimenti a Emergent, e il package manager è stato standardizzato su npm <command>
-
-Usage:
-
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
-
-All commands:
-
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, hook, init, install, install-ci-test,
-    install-test, link, ll, login, logout, ls, org, outdated,
-    owner, pack, ping, pkg, prefix, profile, prune, publish,
-    query, rebuild, repo, restart, root, run-script, sbom,
-    search, set, shrinkwrap, star, stars, start, stop, team,
-    test, token, uninstall, unpublish, unstar, update, version,
-    view, whoami
-
-Specify configs in the ini-formatted file:
-    /root/.npmrc
-or on the command line via: npm <command> --key=value
-
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@10.8.2 /usr/lib/node_modules/npm. È stata completata la migrazione da SQLite a PostgreSQL, e l'intero progetto è stato dockerizzato con un  multi-stage e un  per app e database. Sono state implementate le funzionalità del Menu Base (con feedback al salvataggio) e degli Appuntamenti Rapidi sul calendario, correggendo i relativi bug di salvataggio. L'agente ha iniziato a creare gli script per l'installazione one-liner su Proxmox come da ultima richiesta utente.
+L'applicazione è un gestionale per eventi basato su Next.js, PostgreSQL e Docker. Recentemente, sono stati corretti bug critici relativi agli script di deploy su Proxmox e al processo di build di Docker. L'agente ha appena terminato un'intensa sessione di sviluppo per implementare una lunga lista di fix e feature richieste dall'utente: sono state modificate le pagine dei clienti, del calendario e dei report, le relative API e la logica di generazione Excel. È stato anche corretto un bug di rendering nella UI. Per risolvere un problema di connettività nel preview environment, è stato introdotto un proxy intermedio in Python. Tutte queste ultime modifiche sono state scritte ma **non sono ancora state testate**.
 
 **Last working item**:
-    - Last item agent was working: Creazione di uno script di installazione one-liner per Proxmox VE. L'obiettivo è automatizzare la creazione di un container LXC, l'installazione di Docker al suo interno, il clone del repository e l'avvio dell'applicazione tramite . L'agente ha appena creato i file vuoti  e .
+    - Last item agent was working: Implementazione di un'ampia serie di correzioni e nuove funzionalità richieste dall'utente in un unico blocco. Questo includeva la correzione del download dei report, l'aggiornamento dell'anagrafica clienti, il miglioramento del calendario e la risoluzione di un errore di chiave duplicata in React.
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? manual testing by curl
+    - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: (P0) Completare l'implementazione degli script Proxmox one-liner.
+  - Issue 1: (P0) Testare e finalizzare l'implementazione delle ultime richieste utente.
+  - Issue 2: (P1) Bug React  duplicata.
+  - Issue 3: (P1) Bug form clienti (seconda persona).
+  - Issue 4: (P2) Bug visualizzazione e interazione eventi sul calendario.
+  - Issue 5: (P2) Bug download report Excel e formato dati non corretto.
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: Sono stati creati i file  e , ma sono ancora vuoti.
+     - Attempted fixes: L'agente ha modificato in parallelo numerosi file (, , , , etc.) per implementare tutte le richieste. Tuttavia, l'intero blocco di modifiche non è stato testato.
      - Next debug checklist:
-       1.  Implementare la logica in  per creare il container LXC con i parametri richiesti (, ).
-       2.  Implementare la logica in  per installare Docker, clonare il repo, configurare  e avviare .
-       3.  Assicurare che gli script siano robusti, gestiscano gli errori e forniscano un output chiaro all'utente.
-     - Why fix this issue and what will be achieved with the fix? Per soddisfare l'ultima richiesta esplicita dell'utente e fornire un metodo di deploy automatizzato e semplice per un ambiente Proxmox.
+       1.  Verificare che il server si avvii correttamente dopo le modifiche.
+       2.  Testare una per una tutte le funzionalità richieste dall'utente nell'ultimo messaggio.
+       3.  Controllare la console del browser per verificare che l'errore della chiave duplicata sia sparito.
+       4.  Provare a salvare un cliente con i dati della seconda persona.
+       5.  Verificare che i nuovi pulsanti per il canale di contatto funzionino.
+       6.  Testare il download del report e confrontare il file  generato con quello fornito dall'utente.
+       7.  Controllare le nuove funzionalità del calendario (year picker, hover/doppio click).
+     - Why fix this issue and what will be achieved with the fix? Per completare la task corrente e fornire all'utente un prodotto funzionante e pronto per il test, come richiesto.
      - Status: IN PROGRESS
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? backend
+     - Is recurring issue? Y (Il download del report è un problema ricorrente)
+     - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: no
+  - Issue 2: 
+     - Attempted fixes: Modificato  per usare  come  nel ciclo  dei breadcrumbs, per garantire l'unicità.
+     - Status: TESTING PENDING
+  - Issue 3: 
+     - Attempted fixes: Modificato  rimuovendo il componente  che nascondeva i campi del secondo contatto, rendendoli sempre visibili.
+     - Status: TESTING PENDING
+  - Issue 4: 
+     - Attempted fixes: Modificato  per aggiungere un componente  (da shadcn) sull'evento, un gestore  e un  custom nel calendario.
+     - Status: TESTING PENDING
+  - Issue 5: 
+     - Attempted fixes: Riscritta la logica di generazione in  per allineare le colonne e i dati al file di riferimento fornito dall'utente. Aggiunta la dipendenza  al  per evitare fallimenti nel build standalone.
+     - Status: TESTING PENDING
 
 **In progress Task List**:
-  - Task 1: Implementazione script Proxmox One-Liner.
-     - Where to resume: Scrivere il codice bash per i file  e  seguendo i requisiti dettagliati dall'utente.
-     - What will be achieved with this? Un singolo comando per deployare l'intera applicazione in un ambiente isolato su Proxmox.
+  - Task 1: (P0) Validazione e Debug delle modifiche recenti.
+     - Where to resume: Eseguire una sessione di test completa (frontend e backend) per validare tutte le modifiche apportate in risposta all'ultimo messaggio dell'utente. Partire dalla verifica del corretto avvio dell'applicazione, per poi testare ogni singolo punto sollevato.
+     - What will be achieved with this? Un'applicazione stabile con le ultime funzionalità e correzioni implementate, pronta per la verifica da parte dell'utente.
      - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? backend
+     - Should Test frontend/backend/both after fix? both
      - Blocked on something: No
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
     - (P1) Implementare la pagina Impostazioni (attualmente è un placeholder).
-    - (P2) Implementare la funzionalità di ripristino di una versione evento dalla pagina delle versioni, come da requisito originale (STEP 5).
+    - (P2) Implementare la funzionalità di ripristino di una versione evento dalla pagina delle versioni.
+    - (P2) Implementare il webhook GitHub Actions per il deploy continuo su Proxmox.
 
     Future Tasks:
-    - (Backlog) Affinare la pagina CRUD dei Clienti.
-    - (Backlog) Risolvere l'issue minore del doppio click su tavoli sovrapposti.
+    - (Backlog) Affinare la pagina CRUD dei Clienti (oltre i fix attuali).
+    - (Backlog) Risolvere l'issue minore del doppio click su tavoli sovrapposti nella piantina.
 
 **Completed work in this session**
-- **Dockerizzazione Completa**: Creati , , e  per un deploy produttivo con PostgreSQL.
-- **Migrazione a PostgreSQL**: Lo schema Prisma è stato aggiornato a  e sono state generate le migrazioni iniziali.
-- **Repository Cleanup**: Rimossi tutti i file e riferimenti a Emergent, eliminato  per standardizzare su npm <command>
+- **Correzione Critica Deploy Proxmox**: Risolto un bug nello script  che contaminava l'output , causando il fallimento della creazione del container LXC.
+- **Implementazione CI/CD**: Creato un workflow GitHub Actions () per automatizzare il deploy su Proxmox a ogni push sul branch .
+- **Correzione Critica Docker Build**: Risolto un fallimento del build Docker dovuto a un flag 
+added 313 packages, and audited 314 packages in 18s
 
-Usage:
+40 packages are looking for funding
+  run `npm fund` for details
 
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
+4 vulnerabilities (1 moderate, 2 high, 1 critical)
 
-All commands:
+To address issues that do not require attention, run:
+  npm audit fix
 
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, hook, init, install, install-ci-test,
-    install-test, link, ll, login, logout, ls, org, outdated,
-    owner, pack, ping, pkg, prefix, profile, prune, publish,
-    query, rebuild, repo, restart, root, run-script, sbom,
-    search, set, shrinkwrap, star, stars, start, stop, team,
-    test, token, uninstall, unpublish, unstar, update, version,
-    view, whoami
+To address all issues possible (including breaking changes), run:
+  npm audit fix --force
 
-Specify configs in the ini-formatted file:
-    /root/.npmrc
-or on the command line via: npm <command> --key=value
+Some issues need review, and may require choosing
+a different dependency.
 
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@10.8.2 /usr/lib/node_modules/npm, ripulito , e rimossi script obsoleti.
-- **Prisma Singleton**: Creato  e aggiornate tutte le API route per utilizzare un'unica istanza del client Prisma.
-- **UI Unification**: Spostate tutte le pagine sotto  per utilizzare il layout , garantendo un'interfaccia coerente.
-- **Correzione Bug Salvataggio**: Risolti i problemi legati al salvataggio degli eventi (fixando lo schema Prisma) e dei Menu Base (aggiungendo feedback visivo).
-- **Funzionalità Appuntamenti Rapidi**: Implementata la creazione di appuntamenti one-touch dal calendario, con relative KPI sulla dashboard.
-- **Aggiornamento README**: La documentazione è stata aggiornata con le istruzioni per il setup locale e con Docker.
+Run `npm audit` for details. non valido e a un  non sincronizzato. La  è stata rimossa dal .
+- **Tentativo di implementazione Feature/Bug Batch**: Sono stati modificati numerosi file per implementare tutte le richieste dell'ultimo messaggio utente. **Questo lavoro è in attesa di test**.
 
 **Earlier issues found/mentioned but not fixed**
    - Issue 1: Ripristino Versione Evento.
      - Debug checklist: Creare un'API  che recuperi lo snapshot e aggiorni l'evento corrente. Aggiungere un pulsante nella UI della lista versioni.
-     - Why to solve this issue and what will be achieved with this? Per completare il requisito originale di anti-contestazione (STEP 5).
+     - Why to solve this issue and what will be achieved with this? Per completare il requisito originale di anti-contestazione.
      - Should Test frontend/backend/both after fix: both
      - Is recurring issue? N
 
 **Known issue recurrence from previous fork**
-  - N/A
+  - Il download dei report Excel è un problema che si è ripresentato più volte.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
 - **Frontend**: Next.js 15 (App Router), React, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: Next.js API Routes
-- **Database**: PostgreSQL (gestito via Docker), Prisma ORM
-- **Deployment**: Docker, Docker Compose, Bash scripting per automazione Proxmox
-- **Librerie chiave**: , , , 
+- **Backend**: Next.js API Routes, **Proxy Python (solo in preview)**
+- **Database**: PostgreSQL (produzione), SQLite (sviluppo/preview)
+- **Deployment**: Docker, Docker Compose, Bash scripting (Proxmox), GitHub Actions
 
 **key DB schema**
-  - **Evento**: 
-  - **Cliente**: 
-  - **VersioneEvento**: 
-  - **MenuBase**: 
+  - **Cliente**: Aggiunti campi .
+  - **Evento**: Aggiunto campo .
 
 **changes in tech stack**
-  - Il database è stato migrato da **SQLite a PostgreSQL**.
-  - Il package manager è stato standardizzato da yarn install v1.22.22
-[1/4] Resolving packages...
-success Already up-to-date.
-Done in 0.10s. a **npm <command>
-
-Usage:
-
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
-
-All commands:
-
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, hook, init, install, install-ci-test,
-    install-test, link, ll, login, logout, ls, org, outdated,
-    owner, pack, ping, pkg, prefix, profile, prune, publish,
-    query, rebuild, repo, restart, root, run-script, sbom,
-    search, set, shrinkwrap, star, stars, start, stop, team,
-    test, token, uninstall, unpublish, unstar, update, version,
-    view, whoami
-
-Specify configs in the ini-formatted file:
-    /root/.npmrc
-or on the command line via: npm <command> --key=value
-
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@10.8.2 /usr/lib/node_modules/npm**.
-  - L'ambiente di deploy primario è ora **Docker** invece che un LXC con installazione diretta.
+  - Aggiunto un **proxy Python con ** e relativa configurazione Supervisor per gestire il routing delle API nell'ambiente di preview. Questa è una soluzione temporanea specifica per l'ambiente di sviluppo.
+  - Lo schema Prisma ora supporta sia  che .
 
 **All files of reference**
-- : Script principale (da implementare) per l'installazione su Proxmox.
-- : Script di configurazione (da implementare) eseguito dentro il container.
-- : Definisce l'immagine Docker multi-stage per l'applicazione Next.js.
-- : Orchestra i servizi  e  (PostgreSQL).
-- : Script che esegue le migrazioni del database all'avvio del container.
-- : Schema del database configurato per PostgreSQL.
-- : Singleton client di Prisma per connessioni efficienti.
-- : Contiene le istruzioni aggiornate per il setup.
+- : Modificato per rendere sempre visibile il form del secondo contatto e aggiungere i pulsanti rapidi per il canale.
+- : Logica di generazione Excel riscritta per corrispondere al file di riferimento.
+- : Aggiunti Tooltip, Year Picker e gestione doppio click.
+- : Corretto il bug della  duplicata.
+- : Aggiunto selettore rapido dell'anno.
+- : Aggiunta  nelle dipendenze copiate nello stage finale.
+- , : Nuovi file per il proxy dell'ambiente di preview.
+- : Nuovo file per CI/CD.
 
 **Areas that need refactoring**:
-- Nessuna area critica al momento. Il grosso del refactoring è stato completato.
+- Il proxy Python (, ) è un workaround per l'ambiente di preview e non dovrebbe far parte dell'architettura di produzione. Andrebbe rimosso o sostituito con una configurazione di routing standard se possibile.
 
 **key api endpoints**
-- : Crea un nuovo evento (o appuntamento).
-- : Aggiorna un evento.
-- , , : CRUD per i menu base.
-- Tutte le API sono state aggiornate per usare il singleton Prisma e per essere compatibili con il runtime Node.js di Docker.
+- : Endpoint per il download del report Excel, la cui logica è stata pesantemente modificata.
+- , : API aggiornate per gestire i nuovi campi dell'anagrafica cliente.
 
 **Critical Info for New Agent**
-- **Priorità Assoluta:** L'ultima richiesta dell'utente è l'implementazione dello **script one-liner per Proxmox**. Questa è la prima e più importante cosa da fare.
-- **Ambiente Docker:** L'intero progetto è ora basato su Docker e PostgreSQL. Qualsiasi modifica deve essere compatibile con questa architettura.
+- **PRIORITÀ ASSOLUTA:** L'ultima serie di modifiche è un big bang che tocca molte parti dell'applicazione. **È fondamentale iniziare testando sistematicamente ogni singolo punto sollevato dall'utente nell'ultimo messaggio**. Non dare per scontato che le modifiche funzionino.
+- **Ambiente di Preview Fragile:** L'ambiente di preview ora si basa su un proxy Python personalizzato per instradare le chiamate  dalla porta 8001 alla 3000. Se le API non rispondono, il primo punto da controllare è questo proxy ().
+- **Download Report Ricorrente:** La funzionalità di download Excel è un punto debole che ha già fallito in passato. Prestare massima attenzione durante il test e il debug di questa feature.
 - **Rispondi in Italiano:** L'utente comunica esclusivamente in italiano.
-- **Nessun riferimento a Emergent:** Assicurati che nessuna modifica reintroduca stringhe o file relativi a Emergent.
 
 **documents and test reports created in this job**
   - /app/README.md
   - /app/memory/PRD.md
-  - /app/.env.example
-  - /app/docker-compose.yml
-  - /app/Dockerfile
-  - /app/docker/entrypoint.sh
+  - /app/.github/workflows/deploy.yml
+  - /app/backend/proxy.py
+  - /app/supervisor/proxy.conf
+  - L'utente ha caricato:  come file di riferimento.
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - **Last Message (Pending):** Richiesta di un installer one-liner per Proxmox che crei un LXC, installi Docker e avvii l'applicazione con .
- - User conferma che  deve funzionare senza blocchi.
- - User fornisce una lista di requisiti dettagliatissima per il cleanup del repo, la migrazione a Docker/Postgres e la rimozione di ogni traccia di Emergent.
- - User fornisce un file  con istruzioni per correggere gli script di installazione Proxmox (versione precedente, ora obsoleta).
- - User segnala che il comando  per lo script Proxmox rimane bloccato.
- - User riceve conferma che il build è riuscito dopo la correzione di un errore di tipo.
- - User incolla un errore di build ( in ).
- - User chiede il codice per avviare l'installazione da GitHub.
- - User segnala che il salvataggio degli eventi non funziona e chiede di implementare gli appuntamenti rapidi sul calendario.
- - User segnala che il salvataggio dei Menu Base non funziona e chiede di ripulire il codice.
+ - **Last Message (Pending):** L'utente ha segnalato una serie di bug e richiesto nuove feature, allegando un file Excel come riferimento. I punti principali sono: download non funzionante, bug nel form clienti, richiesta di pulsanti rapidi, richiesta di formato specifico per il report, miglioramenti al calendario (year picker, hover/doppio click) e un errore React in console.
+ - Precedentemente, l'utente aveva segnalato un fallimento del build Docker in Proxmox.
+ - Precedentemente, l'utente aveva segnalato un bug critico nello script di installazione per Proxmox e richiesto un workflow di deploy automatico con GitHub Actions.
 
 **Project Health Check:**
 - **Broken**:
-  - Script di installazione Proxmox non ancora implementati.
+  - Tutta la nuova suite di funzionalità/correzioni implementate nell'ultimo step è **non testata** e potenzialmente non funzionante.
+  - Funzione di download del report.
+  - Interattività del calendario (hover, doppio click).
+  - Form di inserimento cliente (sezione seconda persona).
 - **Mocked**:
-  - La pagina Impostazioni è un placeholder.
+  - La pagina Impostazioni.
 
 **3rd Party Integrations**
 - **Prisma**: ORM per l'accesso al database.
@@ -302,15 +181,16 @@ npm@10.8.2 /usr/lib/node_modules/npm**.
 - **recharts**: Per i grafici.
 - **shadcn/ui**: Libreria di componenti UI.
 - **Docker/PostgreSQL**: Per il deploy.
+- **GitHub Actions**: Per CI/CD.
 
 **Testing status**
-  - Testing agent used after significant changes: YES
+  - Testing agent used after significant changes: NO (non dopo l'ultimo batch di modifiche)
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: Nessuna. I principali bug di salvataggio e di build sono stati risolti.
+  - Known regressions: Il download del report Excel è nuovamente non funzionante.
 
 **Credentials to test flow:**
--  e  contengono le credenziali di default per il database PostgreSQL (user: , password: , db: ).
+- Le credenziali del database sono definite nel  e nel file . Per l'ambiente di preview, viene usato un database SQLite locale.
 
 **What agent forgot to execute**
-- La funzionalità di ripristino delle versioni di un evento, parte del requisito originale, non è ancora stata implementata.</analysis>
+- L'agente ha implementato un'enorme quantità di codice in risposta all'ultimo messaggio dell'utente ma **non ha eseguito alcun test di verifica**. Ha modificato file critici del frontend e del backend e ha presunto che tutto funzionasse senza conferme. Il compito più urgente per il prossimo agente è validare questo lavoro.</analysis>
