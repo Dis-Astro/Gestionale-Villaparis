@@ -102,7 +102,7 @@ export async function GET(req: Request) {
 
     // Colonne (come da template fornito dall'utente)
     sheet1.columns = [
-      { key: 'data',       width: 14 },
+      { key: 'data',       width: 26 },
       { key: 'tipo',       width: 16 },
       { key: 'sposa',      width: 26 },
       { key: 'sposo',      width: 26 },
@@ -115,9 +115,9 @@ export async function GET(req: Request) {
     ]
 
     const hRow = sheet1.addRow([
-      'Mese Evento', 'Tipo Evento', 'Sposa / Festeggiato', 'Sposo',
-      'Menù Pasto', 'Menù Buffet', 'Luogo', 'Pranzo/Cena',
-      'N° Persone', 'Prezzo Totale Evento'
+      'Data Evento', 'Tipo Evento', 'Sposa / Festeggiato', 'Sposo',
+      'Menu Pasto', 'Menu Buffet', 'Luogo', 'Pranzo/Cena',
+      'N. Persone', 'Prezzo Totale Evento'
     ])
     applyHeader(hRow, 10)
 
@@ -126,8 +126,13 @@ export async function GET(req: Request) {
 
     eventi.forEach((ev, idx) => {
       const cp = ev.clienti[0]?.cliente
-      const meseEvento = ev.dataConfermata
-        ? new Date(ev.dataConfermata).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      const dataEvento = ev.dataConfermata
+        ? (() => {
+            const d = new Date(ev.dataConfermata!)
+            const giorno = d.toLocaleDateString('it-IT', { weekday: 'long' })
+            const data = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            return `${giorno} ${data}`
+          })()
         : 'Da definire'
       const persone  = ev.personePreviste || 0
       const prezzo   = ev.prezzo || 0
@@ -136,7 +141,7 @@ export async function GET(req: Request) {
       totalRicavo   += totale
 
       const row = sheet1.addRow({
-        data:       meseEvento,
+        data:       dataEvento,
         tipo:       ev.tipo,
         sposa:      ev.sposa || cp ? `${cp?.nome || ''} ${cp?.cognome || ''}`.trim() : '',
         sposo:      ev.sposo || '',
