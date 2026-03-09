@@ -29,62 +29,61 @@ Gestori di Villa Paris (location eventi).
 - [x] Versioning - snapshot anti-contestazione
 - [x] Blocco automatico modifiche a -10 giorni
 
+### Flusso Evento & Canale Contatto
+- [x] Canale di contatto (Telefono, Mail, Matrimonio.com, Social, Passaparola, Altro) nel form Nuovo Evento
+- [x] Canale di contatto nel modal Appuntamento Rapido (calendario)
+- [x] Due anagrafiche separate per evento: Sposa/Festeggiata + Sposo (2 record Cliente distinti)
+- [x] Auto-show sezione Sposo quando tipo = Matrimonio
+- [x] canalePrimoContatto salvato sia su Evento che su Cliente
+
 ### Anagrafica Clienti
 - [x] CRUD completo clienti
-- [x] Pulsanti rapidi canale contatto (Telefono, Mail, Matrimonio.com, Social, Passaparola, Altro)
-- [x] Sezione secondo contatto (nome, telefono, email) sempre visibile
+- [x] Canale contatto e tipo cliente nel form clienti
+- [x] Rimossa sezione "secondo contatto" (2 persone = 2 anagrafiche separate)
 - [x] Export CSV clienti
 - [x] Ricerca clienti per nome, email, telefono, citta
 
 ### Database & Backend
-- [x] Migrazione da SQLite a PostgreSQL
-- [x] Prisma ORM con schema aggiornato
+- [x] Migrazione da SQLite a PostgreSQL (produzione)
+- [x] Prisma ORM con schema aggiornato (canalePrimoContatto su Evento)
+- [x] API eventi supporta creazione multipla clienti
 - [x] Singleton client Prisma per connessioni efficienti
-- [x] Migrazioni SQL versionate
 
 ### Deploy & Infrastructure
 - [x] Dockerfile multi-stage per Next.js 15
-- [x] docker-compose.yml con variabili d'ambiente (no credenziali hardcoded)
+- [x] docker-compose.yml con variabili d'ambiente
 - [x] docker/entrypoint.sh per migrazioni automatiche all'avvio
-- [x] .env.example completo
 - [x] Script Proxmox one-liner (install-ct.sh + ct-setup.sh)
-- [x] GitHub Actions CI/CD deploy automatico (.github/workflows/deploy.yml)
+- [x] GitHub Actions CI/CD deploy automatico
 
 ## Architettura
-
 ```
 /app
-├── docker/
-│   └── entrypoint.sh         # Migrazioni DB all'avvio
 ├── prisma/
-│   ├── migrations/
-│   └── schema.prisma          # Schema PostgreSQL
-├── proxmox/
-│   ├── install-ct.sh          # Installer Proxmox (crea LXC, push ct-setup.sh)
-│   └── ct-setup.sh            # Setup container (Docker, clone, .env, build, up)
-├── public/uploads/
+│   ├── schema.dev.prisma      # SQLite (dev/preview)
+│   └── schema.prisma          # PostgreSQL (produzione)
 ├── src/
 │   ├── app/
 │   │   ├── (app)/             # Pagine con layout AppShell
+│   │   │   ├── calendario/    # Calendar + appuntamento rapido + canale
+│   │   │   ├── clienti/       # Anagrafica senza 2 contatto
+│   │   │   ├── nuovo-evento/  # 2 clienti + canale contatto
+│   │   │   └── ...
 │   │   └── api/               # API Routes Next.js
-│   ├── components/layout/
-│   │   └── AppShell.tsx
-│   └── lib/
-│       └── prisma.ts          # Singleton Prisma client
-├── .env.example
+│   └── components/
 ├── docker-compose.yml
 ├── Dockerfile
 └── README.md
 ```
 
 ## Stack Tecnologico
-- Frontend: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, shadcn/ui
+- Frontend: Next.js 15 (App Router), React, TypeScript, Tailwind CSS, shadcn/ui
 - Backend: Next.js API Routes
-- Database: PostgreSQL 16 + Prisma ORM
+- Database: PostgreSQL 16 (prod) + SQLite (dev) + Prisma ORM
 - Deploy: Docker, Docker Compose, Bash (Proxmox LXC)
 - Librerie: pdfmake, exceljs, react-dnd, recharts, FullCalendar
 
-## Backlog P0/P1/P2
+## Backlog P1/P2
 
 ### P1 - Upcoming
 - [ ] Pagina Impostazioni (attualmente placeholder)
@@ -94,8 +93,3 @@ Gestori di Villa Paris (location eventi).
 ### P2 - Backlog
 - [ ] CRUD Clienti migliorato (filtri avanzati)
 - [ ] Fix doppio click su tavoli sovrapposti nella piantina
-
-## One-Liner Proxmox
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Dis-Astro/villa-paris-gestionale/main/proxmox/install-ct.sh)"
-```
