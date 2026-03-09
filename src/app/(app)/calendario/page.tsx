@@ -126,7 +126,7 @@ export default function CalendarioPage() {
 
   // Modal appuntamento rapido
   const [showAppuntamento, setShowAppuntamento] = useState(false)
-  const [appuntamento, setAppuntamento] = useState({ nome: '', telefono: '', email: '', ora: '10:00', note: '' })
+  const [appuntamento, setAppuntamento] = useState({ nome: '', telefono: '', email: '', ora: '10:00', note: '', canale: '' })
   const [isSaving, setIsSaving] = useState(false)
   const [status, setStatus] = useState('')
 
@@ -167,7 +167,7 @@ export default function CalendarioPage() {
     setEventiDelGiorno(evGiorno)
     if (evGiorno.length === 0) {
       setShowAppuntamento(true)
-      setAppuntamento({ nome: '', telefono: '', email: '', ora: '10:00', note: '' })
+      setAppuntamento({ nome: '', telefono: '', email: '', ora: '10:00', note: '', canale: '' })
       setStatus('')
     }
   }
@@ -285,12 +285,13 @@ export default function CalendarioPage() {
           dateProposte: [dataSelezionata],
           dataConfermata: dataSelezionata,
           dataPrimoContatto: dataSelezionata,
+          canalePrimoContatto: appuntamento.canale || null,
           fascia: 'pranzo',
           stato: 'confermato',
           note: `Ora: ${appuntamento.ora}\nTelefono: ${appuntamento.telefono}\n${appuntamento.note}`,
           clienti: [{
             nome: appuntamento.nome,
-            email: appuntamento.email || `appuntamento@villa-paris.local`,
+            email: appuntamento.email || `${appuntamento.nome.toLowerCase().replace(/\s+/g, '.')}@villa-paris.local`,
             telefono: appuntamento.telefono
           }]
         })
@@ -442,6 +443,34 @@ export default function CalendarioPage() {
                   })}
                 </p>
               </div>
+              {/* Canale di contatto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Come ci ha contattato?</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { value: 'telefono', label: 'Telefono', icon: '📞' },
+                    { value: 'email', label: 'Mail', icon: '📧' },
+                    { value: 'matrimonio.com', label: 'Matrimonio.com', icon: '💒' },
+                    { value: 'social', label: 'Social', icon: '📱' },
+                    { value: 'passaparola', label: 'Passaparola', icon: '🗣️' },
+                    { value: 'altro', label: 'Altro', icon: '•' },
+                  ].map(c => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setAppuntamento(a => ({ ...a, canale: a.canale === c.value ? '' : c.value }))}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border-2 transition-all ${
+                        appuntamento.canale === c.value
+                          ? 'border-violet-500 bg-violet-500 text-white shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-violet-300'
+                      }`}
+                      data-testid={`canale-app-btn-${c.value}`}
+                    >
+                      <span>{c.icon}</span>{c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome Cliente *</label>
                 <Input value={appuntamento.nome} onChange={e => setAppuntamento({ ...appuntamento, nome: e.target.value })} placeholder="Mario Rossi" autoFocus />
@@ -476,7 +505,7 @@ export default function CalendarioPage() {
                 </Button>
               </div>
               <div className="text-center">
-                <Button variant="link" size="sm" onClick={() => { setShowAppuntamento(false); router.push(`/nuovo-evento?data=${dataSelezionata}`) }}>
+                <Button variant="link" size="sm" onClick={() => { setShowAppuntamento(false); router.push(`/nuovo-evento?data=${dataSelezionata}${appuntamento.canale ? `&canale=${appuntamento.canale}` : ''}`) }}>
                   Crea evento completo →
                 </Button>
               </div>

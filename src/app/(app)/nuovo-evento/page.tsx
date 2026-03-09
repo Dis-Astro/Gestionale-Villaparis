@@ -10,12 +10,7 @@ import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 import { 
-  Plus, 
-  Save, 
-  ArrowLeft, 
-  Calendar, 
-  Users, 
-  X
+  Plus, Save, ArrowLeft, Calendar, Users, X, Phone
 } from "lucide-react"
 
 const tipiEvento = [
@@ -35,18 +30,33 @@ const statiEvento = [
   { label: "Annullato", value: "annullato" }
 ]
 
+const CANALI = [
+  { value: 'telefono',        label: 'Telefono',        icon: '📞' },
+  { value: 'email',           label: 'Mail',            icon: '📧' },
+  { value: 'matrimonio.com',  label: 'Matrimonio.com',  icon: '💒' },
+  { value: 'social',          label: 'Social',          icon: '📱' },
+  { value: 'passaparola',     label: 'Passaparola',     icon: '🗣️' },
+  { value: 'altro',           label: 'Altro',           icon: '•'  },
+]
+
 function NuovoEventoContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const dataIniziale = searchParams.get('data')
+  const canaleIniziale = searchParams.get('canale') || ''
   
-  const [cliente, setCliente] = useState({
-    nome: "",
-    cognome: "",
-    email: "",
-    telefono: "",
-    indirizzo: ""
+  // Primo contatto: Sposa / Festeggiato
+  const [cliente1, setCliente1] = useState({
+    nome: "", cognome: "", email: "", telefono: ""
   })
+
+  // Secondo contatto: Sposo (opzionale)
+  const [cliente2, setCliente2] = useState({
+    nome: "", cognome: "", email: "", telefono: ""
+  })
+  const [showCliente2, setShowCliente2] = useState(false)
+
+  const [canalePrimoContatto, setCanalePrimoContatto] = useState(canaleIniziale)
   
   const [evento, setEvento] = useState({
     tipo: "",
@@ -61,7 +71,6 @@ function NuovoEventoContent() {
   
   const [isSaving, setIsSaving] = useState(false)
   
-  // Imposta data iniziale se presente
   useEffect(() => {
     if (dataIniziale && !evento.dateProposte.includes(dataIniziale)) {
       setEvento(prev => ({
@@ -70,6 +79,13 @@ function NuovoEventoContent() {
       }))
     }
   }, [dataIniziale])
+
+  // Mostra automaticamente lo sposo se il tipo è matrimonio
+  useEffect(() => {
+    if (evento.tipo === 'Matrimonio' && !showCliente2) {
+      setShowCliente2(true)
+    }
+  }, [evento.tipo])
 
   const toggleDataDaCalendario = (arg: any) => {
     const data = arg.dateStr
@@ -88,27 +104,43 @@ function NuovoEventoContent() {
   }
 
   const confermaEvento = async () => {
-    if (!cliente.email || !cliente.nome) {
-      alert("⚠️ Inserisci almeno nome ed email del cliente.")
+    if (!cliente1.nome.trim()) {
+      alert("Inserisci almeno il nome del primo contatto (Sposa/Festeggiato).")
       return
     }
     if (!evento.titolo || !evento.tipo) {
-      alert("⚠️ Inserisci titolo e tipo evento.")
+      alert("Inserisci titolo e tipo evento.")
       return
     }
     
     setIsSaving(true)
     
+    // Build the clients array
+    const clienti = [{
+      nome: cliente1.nome,
+      cognome: cliente1.cognome,
+      email: cliente1.email || `${cliente1.nome.toLowerCase().replace(/\s+/g, '.')}@villa-paris.local`,
+      telefono: cliente1.telefono,
+      tipoCliente: evento.tipo === 'Matrimonio' ? 'sposa' : 'festeggiato'
+    }]
+
+    if (showCliente2 && cliente2.nome.trim()) {
+      clienti.push({
+        nome: cliente2.nome,
+        cognome: cliente2.cognome,
+        email: cliente2.email || `${cliente2.nome.toLowerCase().replace(/\s+/g, '.')}@villa-paris.local`,
+        telefono: cliente2.telefono,
+        tipoCliente: 'sposo'
+      })
+    }
+
     const payload = {
       ...evento,
-      clienti: [{
-        nome: cliente.nome,
-        cognome: cliente.cognome,
-        email: cliente.email,
-        telefono: cliente.telefono,
-        indirizzo: cliente.indirizzo
-      }],
-      personePreviste: parseInt(evento.personePreviste || "0")
+      clienti,
+      canalePrimoContatto,
+      personePreviste: parseInt(evento.personePreviste || "0"),
+      sposa: `${cliente1.nome} ${cliente1.cognome}`.trim(),
+      sposo: showCliente2 && cliente2.nome.trim() ? `${cliente2.nome} ${cliente2.cognome}`.trim() : ''
     }
     
     try {
@@ -119,14 +151,14 @@ function NuovoEventoContent() {
       })
       
       if (res.ok) {
-        alert("✅ Evento salvato!")
         router.push("/calendario")
       } else {
-        alert("❌ Errore nel salvataggio")
+        const msg = await res.text()
+        alert(`Errore: ${msg}`)
       }
     } catch (error) {
       console.error("Errore:", error)
-      alert("❌ Errore nel salvataggio")
+      alert("Errore nel salvataggio")
     } finally {
       setIsSaving(false)
     }
@@ -137,11 +169,7 @@ function NuovoEventoContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Button 
-            variant="ghost" 
-            onClick={() => router.push('/calendario')}
-            className="mb-2 -ml-2"
-          >
+          <Button variant="ghost" onClick={() => router.push('/calendario')} className="mb-2 -ml-2">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Torna al Calendario
           </Button>
@@ -150,75 +178,115 @@ function NuovoEventoContent() {
             Nuovo Evento
           </h1>
         </div>
-        <Button 
-          onClick={confermaEvento}
-          disabled={isSaving}
-          className="bg-amber-500 hover:bg-amber-600"
-        >
+        <Button onClick={confermaEvento} disabled={isSaving} className="bg-amber-500 hover:bg-amber-600" data-testid="salva-evento-btn">
           <Save className="w-4 h-4 mr-2" />
           {isSaving ? 'Salvataggio...' : 'Salva Evento'}
         </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Cliente */}
+        {/* Canale Contatto */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Phone className="w-5 h-5 text-violet-500" />
+              Come ci ha contattato?
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {CANALI.map(c => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setCanalePrimoContatto(canalePrimoContatto === c.value ? '' : c.value)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border-2 transition-all ${
+                    canalePrimoContatto === c.value
+                      ? 'border-violet-500 bg-violet-500 text-white shadow-sm scale-105'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-violet-300 hover:bg-violet-50'
+                  }`}
+                  data-testid={`canale-evento-btn-${c.value}`}
+                >
+                  <span>{c.icon}</span>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Sposa / Festeggiato */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Dati Cliente
+              {evento.tipo === 'Matrimonio' ? 'Sposa / Festeggiata' : 'Festeggiato/a (1 contatto)'}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome *
-                </label>
-                <Input 
-                  value={cliente.nome} 
-                  onChange={(e) => setCliente({...cliente, nome: e.target.value})}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+                <Input value={cliente1.nome} onChange={e => setCliente1({...cliente1, nome: e.target.value})} data-testid="cliente1-nome" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cognome
-                </label>
-                <Input 
-                  value={cliente.cognome} 
-                  onChange={(e) => setCliente({...cliente, cognome: e.target.value})}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cognome</label>
+                <Input value={cliente1.cognome} onChange={e => setCliente1({...cliente1, cognome: e.target.value})} data-testid="cliente1-cognome" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
-              </label>
-              <Input 
-                type="email"
-                value={cliente.email} 
-                onChange={(e) => setCliente({...cliente, email: e.target.value})}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <Input type="email" value={cliente1.email} onChange={e => setCliente1({...cliente1, email: e.target.value})} data-testid="cliente1-email" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telefono
-              </label>
-              <Input 
-                value={cliente.telefono} 
-                onChange={(e) => setCliente({...cliente, telefono: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Indirizzo
-              </label>
-              <Input 
-                value={cliente.indirizzo} 
-                onChange={(e) => setCliente({...cliente, indirizzo: e.target.value})}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Telefono</label>
+              <Input value={cliente1.telefono} onChange={e => setCliente1({...cliente1, telefono: e.target.value})} data-testid="cliente1-telefono" />
             </div>
           </CardContent>
+        </Card>
+
+        {/* Sposo (opzionale / auto-mostrato per matrimonio) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                {evento.tipo === 'Matrimonio' ? 'Sposo' : '2 Contatto (opzionale)'}
+              </CardTitle>
+              {evento.tipo !== 'Matrimonio' && (
+                <Button variant="ghost" size="sm" onClick={() => setShowCliente2(!showCliente2)}>
+                  {showCliente2 ? 'Nascondi' : 'Aggiungi'}
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          {showCliente2 && (
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                  <Input value={cliente2.nome} onChange={e => setCliente2({...cliente2, nome: e.target.value})} data-testid="cliente2-nome" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cognome</label>
+                  <Input value={cliente2.cognome} onChange={e => setCliente2({...cliente2, cognome: e.target.value})} data-testid="cliente2-cognome" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <Input type="email" value={cliente2.email} onChange={e => setCliente2({...cliente2, email: e.target.value})} data-testid="cliente2-email" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefono</label>
+                <Input value={cliente2.telefono} onChange={e => setCliente2({...cliente2, telefono: e.target.value})} data-testid="cliente2-telefono" />
+              </div>
+            </CardContent>
+          )}
+          {!showCliente2 && evento.tipo !== 'Matrimonio' && (
+            <CardContent>
+              <p className="text-sm text-gray-400">Clicca "Aggiungi" per inserire un secondo contatto</p>
+            </CardContent>
+          )}
         </Card>
 
         {/* Dati Evento */}
@@ -228,34 +296,30 @@ function NuovoEventoContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Titolo Evento *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Titolo Evento *</label>
               <Input 
                 value={evento.titolo} 
                 onChange={(e) => setEvento({...evento, titolo: e.target.value})}
                 placeholder="Es. Matrimonio Rossi-Bianchi"
+                data-testid="evento-titolo"
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo Evento *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Evento *</label>
                 <select 
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500" 
                   value={evento.tipo} 
                   onChange={(e) => setEvento({...evento, tipo: e.target.value})}
+                  data-testid="evento-tipo"
                 >
                   <option value="">-- Seleziona --</option>
                   {tipiEvento.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fascia Oraria
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fascia Oraria</label>
                 <select 
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500" 
                   value={evento.fascia} 
@@ -269,9 +333,7 @@ function NuovoEventoContent() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Numero Invitati
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Numero Invitati</label>
                 <Input 
                   type="number" 
                   value={evento.personePreviste} 
@@ -279,9 +341,7 @@ function NuovoEventoContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stato
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stato</label>
                 <select 
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500" 
                   value={evento.stato} 
@@ -293,9 +353,7 @@ function NuovoEventoContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Note
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
               <Textarea 
                 value={evento.note} 
                 onChange={(e) => setEvento({...evento, note: e.target.value})}
@@ -306,7 +364,7 @@ function NuovoEventoContent() {
         </Card>
 
         {/* Date */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
@@ -314,31 +372,21 @@ function NuovoEventoContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Date proposte */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Date Proposte (clicca sul calendario)
               </label>
               <div className="flex flex-wrap gap-2 mb-4">
                 {evento.dateProposte.map((d) => (
-                  <span 
-                    key={d}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm"
-                  >
+                  <span key={d} className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
                     {new Date(d).toLocaleDateString('it-IT')}
-                    <button 
-                      type="button"
-                      onClick={() => rimuoviData(d)}
-                      className="text-amber-600 hover:text-red-500"
-                    >
+                    <button type="button" onClick={() => rimuoviData(d)} className="text-amber-600 hover:text-red-500">
                       <X className="w-4 h-4" />
                     </button>
                   </span>
                 ))}
                 {evento.dateProposte.length === 0 && (
-                  <span className="text-sm text-gray-500">
-                    Nessuna data selezionata. Clicca sul calendario per aggiungere.
-                  </span>
+                  <span className="text-sm text-gray-500">Nessuna data selezionata.</span>
                 )}
               </div>
               
@@ -349,29 +397,16 @@ function NuovoEventoContent() {
                   locale="it"
                   dateClick={toggleDataDaCalendario}
                   height="auto"
-                  events={evento.dateProposte.map(d => ({ 
-                    date: d, 
-                    title: "Data proposta",
-                    color: '#F59E0B'
-                  }))}
-                  headerToolbar={{
-                    left: 'prev,next',
-                    center: 'title',
-                    right: 'today'
-                  }}
-                  buttonText={{
-                    today: 'Oggi'
-                  }}
+                  events={evento.dateProposte.map(d => ({ date: d, title: "Data proposta", color: '#F59E0B' }))}
+                  headerToolbar={{ left: 'prev,next', center: 'title', right: 'today' }}
+                  buttonText={{ today: 'Oggi' }}
                 />
               </div>
             </div>
 
-            {/* Data confermata */}
             {evento.dateProposte.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data Confermata
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Confermata</label>
                 <select 
                   className="w-full max-w-xs border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500" 
                   value={evento.dataConfermata} 
@@ -379,9 +414,7 @@ function NuovoEventoContent() {
                 >
                   <option value="">-- Nessuna (opzionata) --</option>
                   {evento.dateProposte.map(d => (
-                    <option key={d} value={d}>
-                      {new Date(d).toLocaleDateString('it-IT')}
-                    </option>
+                    <option key={d} value={d}>{new Date(d).toLocaleDateString('it-IT')}</option>
                   ))}
                 </select>
               </div>

@@ -17,32 +17,34 @@ export async function POST(req: Request) {
     const body = await req.json()
     console.log('POST /api/eventi - body:', JSON.stringify(body).substring(0, 500))
     
-    const clienteRaw = body.clienti?.[0]
-
-    if (!clienteRaw?.email || !clienteRaw?.nome) {
-      console.log('POST /api/eventi - Dati cliente mancanti:', clienteRaw)
+    const clientiRaw = body.clienti || []
+    if (clientiRaw.length === 0 || !clientiRaw[0]?.nome) {
       return new NextResponse('Dati cliente mancanti', { status: 400 })
     }
 
-    let cliente = await prisma.cliente.findFirst({
-      where: { email: clienteRaw.email }
-    })
-
-    if (!cliente) {
-      console.log('POST /api/eventi - Creazione nuovo cliente:', clienteRaw.email)
-      cliente = await prisma.cliente.create({
-        data: {
-          nome: clienteRaw.nome,
-          cognome: clienteRaw.cognome || null,
-          email: clienteRaw.email,
-          telefono: clienteRaw.telefono || null
-        }
-      })
+    // Crea o trova tutti i clienti
+    const clienteIds: number[] = []
+    for (const cr of clientiRaw) {
+      if (!cr.nome?.trim()) continue
+      const email = cr.email?.trim() || `${cr.nome.toLowerCase().replace(/\s+/g, '.')}@villa-paris.local`
+      
+      let cliente = await prisma.cliente.findFirst({ where: { email } })
+      if (!cliente) {
+        cliente = await prisma.cliente.create({
+          data: {
+            nome: cr.nome.trim(),
+            cognome: cr.cognome?.trim() || null,
+            email,
+            telefono: cr.telefono?.trim() || null,
+            tipoCliente: cr.tipoCliente || null,
+            canalePrimoContatto: body.canalePrimoContatto || null,
+            dataPrimoContatto: new Date()
+          }
+        })
+      }
+      clienteIds.push(cliente.id)
     }
 
-    console.log('POST /api/eventi - Cliente ID:', cliente.id)
-
-    // Helper: normalizza campi JSON per compatibilità SQLite + PostgreSQL
     const toJson = (v: any) => typeof v === 'string' ? v : JSON.stringify(v ?? null)
 
     const evento = await prisma.evento.create({
@@ -52,6 +54,7 @@ export async function POST(req: Request) {
         dateProposte: toJson(body.dateProposte ?? []),
         dataConfermata: body.dataConfermata ? new Date(body.dataConfermata) : null,
         dataPrimoContatto: body.dataPrimoContatto ? new Date(body.dataPrimoContatto) : new Date(),
+        canalePrimoContatto: body.canalePrimoContatto || null,
         fascia: body.fascia,
         personePreviste: body.personePreviste ? parseInt(body.personePreviste) : null,
         note: body.note ?? '',
@@ -59,18 +62,18 @@ export async function POST(req: Request) {
         menu: toJson(body.menu || {}),
         struttura: toJson(body.struttura || {}),
         disposizioneSala: body.disposizioneSala || null,
+        sposa: body.sposa || null,
+        sposo: body.sposo || null,
         clienti: {
-          create: [{ cliente: { connect: { id: cliente.id } } }]
+          create: clienteIds.map(id => ({ cliente: { connect: { id } } }))
         }
       },
       include: {
-        clienti: {
-          include: { cliente: true }
-        }
+        clienti: { include: { cliente: true } }
       }
     })
 
-    console.log('POST /api/eventi - Evento creato ID:', evento.id)
+    console.log('POST /api/eventi - Evento creato ID:', evento.id, 'Clienti:', clienteIds.length)
     return NextResponse.json(evento)
   } catch (error) {
     console.error('Errore creazione evento:', error)
@@ -213,7 +216,8 @@ export async function PUT(req: Request) {
         menuBuffet: body.menuBuffet || null,
         sposa: body.sposa || null,
         sposo: body.sposo || null,
-        dataPrimoContatto: body.dataPrimoContatto ? new Date(body.dataPrimoContatto) : undefined
+        dataPrimoContatto: body.dataPrimoContatto ? new Date(body.dataPrimoContatto) : undefined,
+        canalePrimoContatto: body.canalePrimoContatto !== undefined ? (body.canalePrimoContatto || null) : undefined
       }
     })
 
