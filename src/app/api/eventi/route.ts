@@ -42,18 +42,22 @@ export async function POST(req: Request) {
 
     console.log('POST /api/eventi - Cliente ID:', cliente.id)
 
+    // Helper: normalizza campi JSON per compatibilità SQLite + PostgreSQL
+    const toJson = (v: any) => typeof v === 'string' ? v : JSON.stringify(v ?? null)
+
     const evento = await prisma.evento.create({
       data: {
         tipo: body.tipo,
         titolo: body.titolo,
-        dateProposte: body.dateProposte ?? [],
+        dateProposte: toJson(body.dateProposte ?? []),
         dataConfermata: body.dataConfermata ? new Date(body.dataConfermata) : null,
+        dataPrimoContatto: body.dataPrimoContatto ? new Date(body.dataPrimoContatto) : new Date(),
         fascia: body.fascia,
         personePreviste: body.personePreviste ? parseInt(body.personePreviste) : null,
         note: body.note ?? '',
         stato: body.stato ?? 'in_attesa',
-        menu: body.menu || {},
-        struttura: body.struttura || {},
+        menu: toJson(body.menu || {}),
+        struttura: toJson(body.struttura || {}),
         disposizioneSala: body.disposizioneSala || null,
         clienti: {
           create: [{ cliente: { connect: { id: cliente.id } } }]
@@ -186,6 +190,8 @@ export async function PUT(req: Request) {
     // Log solo il necessario, non la base64
     console.log('API DEBUG PUT - tavoli:', body.disposizioneSala?.tavoli?.length, 'stazioni:', body.disposizioneSala?.stazioni?.length)
 
+    const toJson = (v: any) => typeof v === 'string' ? v : JSON.stringify(v ?? null)
+
     const evento = await prisma.evento.update({
       where: { id },
       data: {
@@ -196,17 +202,18 @@ export async function PUT(req: Request) {
         stato: body.stato,
         personePreviste: body.personePreviste ? parseInt(body.personePreviste) : null,
         note: body.note,
-        menu: body.menu,
-        struttura: body.struttura,
+        menu: toJson(body.menu),
+        struttura: toJson(body.struttura),
         disposizioneSala: body.disposizioneSala || null,
-        dateProposte: body.dateProposte ?? [],
+        dateProposte: toJson(body.dateProposte ?? []),
         // Campi report aziendale
         luogo: body.luogo || null,
         prezzo: body.prezzo ? parseFloat(body.prezzo) : null,
         menuPasto: body.menuPasto || null,
         menuBuffet: body.menuBuffet || null,
         sposa: body.sposa || null,
-        sposo: body.sposo || null
+        sposo: body.sposo || null,
+        dataPrimoContatto: body.dataPrimoContatto ? new Date(body.dataPrimoContatto) : undefined
       }
     })
 

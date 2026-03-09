@@ -91,8 +91,11 @@ export default function ReportAziendaPage() {
     }
   }
 
+  const [downloadError, setDownloadError] = useState('')
+
   const handleDownloadExcel = async () => {
     setDownloading(true)
+    setDownloadError('')
     try {
       const params = new URLSearchParams()
       if (dateFrom) params.append('from', dateFrom)
@@ -111,9 +114,16 @@ export default function ReportAziendaPage() {
         a.click()
         window.URL.revokeObjectURL(url)
         a.remove()
+      } else {
+        let msg = `Errore ${res.status}`
+        try {
+          const body = await res.json()
+          msg = body.error || body.detail || msg
+        } catch { /* ignora */ }
+        setDownloadError(msg)
       }
     } catch (error) {
-      console.error('Error downloading Excel:', error)
+      setDownloadError(`Errore di connessione: ${error}`)
     } finally {
       setDownloading(false)
     }
@@ -157,10 +167,16 @@ export default function ReportAziendaPage() {
           onClick={handleDownloadExcel}
           disabled={downloading}
           className="bg-green-600 hover:bg-green-700"
+          data-testid="scarica-excel-btn"
         >
           <FileSpreadsheet className="w-4 h-4 mr-2" />
           {downloading ? 'Download...' : 'Scarica Excel'}
         </Button>
+        {downloadError && (
+          <div className="mt-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg text-sm" data-testid="download-error">
+            {downloadError}
+          </div>
+        )}
       </div>
 
       {/* Filters */}

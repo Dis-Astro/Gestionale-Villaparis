@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/report/azienda.xlsx
- * Genera report Excel con formato aziendale
+ * Genera report Excel multi-foglio (Eventi + Clienti)
  * Query params: from, to, tipo, luogo
  */
 export async function GET(req: Request) {
@@ -20,169 +20,222 @@ export async function GET(req: Request) {
 
     // Build query filters
     const where: any = {}
-    
     if (from || to) {
       where.dataConfermata = {}
       if (from) where.dataConfermata.gte = new Date(from)
-      if (to) where.dataConfermata.lte = new Date(to)
+      if (to)   where.dataConfermata.lte = new Date(to)
     }
-    
-    if (tipo) where.tipo = tipo
+    if (tipo)  where.tipo = tipo
     if (luogo) where.luogo = luogo
 
-    // Fetch eventi with clients
+    // Fetch eventi + clienti
     const eventi = await prisma.evento.findMany({
       where,
       include: {
-        clienti: {
-          include: { cliente: true }
-        }
+        clienti: { include: { cliente: true } }
       },
       orderBy: { dataConfermata: 'asc' }
     })
 
-    // Create Excel workbook
-    const workbook = new ExcelJS.Workbook()
-    workbook.creator = 'Villa Paris Gestionale'
-    workbook.created = new Date()
+    // Fetch tutti i clienti per il foglio anagrafica
+    const clienti = await prisma.cliente.findMany({
+      include: { eventi: { select: { eventoId: true } } },
+      orderBy: { cognome: 'asc' }
+    })
 
-    // Sheet 1: Report Aziendale
-    const sheet = workbook.addWorksheet('Report Aziendale', {
+    // ──────────────────────────────────────────────────
+    // WORKBOOK
+    // ──────────────────────────────────────────────────
+    const wb = new ExcelJS.Workbook()
+    wb.creator = 'Villa Paris Gestionale'
+    wb.created = new Date()
+
+    // ──────────────────────────────────────────────────
+    // FOGLIO 1: Report Aziendale
+    // ──────────────────────────────────────────────────
+    const sheetEventi = wb.addWorksheet('Report Aziendale', {
       properties: { tabColor: { argb: 'FFD700' } }
     })
 
-    // Define columns (matching your template)
-    sheet.columns = [
-      { header: 'Mese', key: 'mese', width: 15 },
-      { header: 'Evento', key: 'evento', width: 25 },
-      { header: 'Sposa / Festeggiato', key: 'sposa', width: 20 },
-      { header: 'Sposo', key: 'sposo', width: 20 },
-      { header: 'Menù pasto', key: 'menuPasto', width: 30 },
-      { header: 'Menù Buffet', key: 'menuBuffet', width: 30 },
-      { header: 'Luogo', key: 'luogo', width: 15 },
-      { header: 'Pranzo/Cena', key: 'fascia', width: 12 },
-      { header: 'N°Persone', key: 'persone', width: 12 },
-      { header: 'Prezzo', key: 'prezzo', width: 12 },
-      { header: 'Totale', key: 'totale', width: 15 }
+    sheetEventi.columns = [
+      { header: 'Data Evento',        key: 'data',       width: 14 },
+      { header: 'Tipo',               key: 'tipo',       width: 15 },
+      { header: 'Titolo / Evento',    key: 'titolo',     width: 28 },
+      { header: 'Sposa / Festeggiato',key: 'sposa',      width: 22 },
+      { header: 'Sposo',              key: 'sposo',      width: 22 },
+      { header: 'Cliente (referente)',key: 'cliente',    width: 22 },
+      { header: 'Telefono',           key: 'telefono',   width: 16 },
+      { header: 'Email',              key: 'email',      width: 26 },
+      { header: 'Menù Pasto',         key: 'menuPasto',  width: 30 },
+      { header: 'Menù Buffet',        key: 'menuBuffet', width: 30 },
+      { header: 'Luogo',              key: 'luogo',      width: 14 },
+      { header: 'Pranzo/Cena',        key: 'fascia',     width: 12 },
+      { header: 'N° Persone',         key: 'persone',    width: 12 },
+      { header: 'Prezzo/pers.',       key: 'prezzo',     width: 13 },
+      { header: 'Totale €',           key: 'totale',     width: 14 },
+      { header: 'Stato',              key: 'stato',      width: 12 },
+      { header: 'Data Registrazione', key: 'regData',    width: 18 },
+      { header: 'Canale Contatto',    key: 'canale',     width: 18 },
     ]
 
-    // Style header row
-    const headerRow = sheet.getRow(1)
-    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } }
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: '1E3A5F' }
-    }
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' }
-    headerRow.height = 25
+    // Stile header
+    const h1 = sheetEventi.getRow(1)
+    h1.font = { bold: true, color: { argb: 'FFFFFF' }, size: 10 }
+    h1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E3A5F' } }
+    h1.alignment = { horizontal: 'center', vertical: 'middle' }
+    h1.height = 22
 
-    // Add data rows
-    eventi.forEach((evento, index) => {
-      const rowNum = index + 2
-      
-      // Get cliente principale
-      const clientePrincipale = evento.clienti[0]?.cliente
-      
-      // Determina sposa/festeggiato
-      let sposa = evento.sposa || ''
-      let sposo = evento.sposo || ''
-      
-      if (!sposa && clientePrincipale) {
-        sposa = `${clientePrincipale.nome} ${clientePrincipale.cognome}`
-      }
+    eventi.forEach((ev, idx) => {
+      const rowNum = idx + 2
+      const cp = ev.clienti[0]?.cliente
+      const sposa  = ev.sposa || ''
+      const sposo  = ev.sposo || ''
+      const menuPasto   = ev.menuPasto  || ''
+      const menuBuffet  = ev.menuBuffet || ''
 
-      // Menu descriptions
-      const menuObj = evento.menu as any
-      const menuPasto = evento.menuPasto || 
-        (menuObj?.portate?.map((p: any) => p.nome).join(', ')) || 
-        ''
-      const menuBuffet = evento.menuBuffet || ''
-
-      // Add row
-      const row = sheet.addRow({
-        mese: evento.dataConfermata 
-          ? new Date(evento.dataConfermata).toLocaleDateString('it-IT')
-          : '',
-        evento: evento.titolo,
-        sposa: sposa,
-        sposo: sposo,
-        menuPasto: menuPasto,
-        menuBuffet: menuBuffet,
-        luogo: evento.luogo || 'Villa Paris',
-        fascia: evento.fascia === 'pranzo' ? 'Pranzo' : 
-                evento.fascia === 'cena' ? 'Cena' : evento.fascia,
-        persone: evento.personePreviste || 0,
-        prezzo: evento.prezzo || 80,
-        totale: { formula: `I${rowNum}*J${rowNum}` }
+      const row = sheetEventi.addRow({
+        data:      ev.dataConfermata  ? new Date(ev.dataConfermata).toLocaleDateString('it-IT')  : '',
+        tipo:      ev.tipo,
+        titolo:    ev.titolo,
+        sposa,
+        sposo,
+        cliente:   cp ? `${cp.nome} ${cp.cognome ?? ''}`.trim() : '',
+        telefono:  cp?.telefono ?? '',
+        email:     cp?.email ?? '',
+        menuPasto,
+        menuBuffet,
+        luogo:     ev.luogo || 'Villa Paris',
+        fascia:    ev.fascia === 'pranzo' ? 'Pranzo' : ev.fascia === 'cena' ? 'Cena' : ev.fascia,
+        persone:   ev.personePreviste || 0,
+        prezzo:    ev.prezzo || 0,
+        totale:    { formula: `M${rowNum}*N${rowNum}` },
+        stato:     ev.stato,
+        regData:   ev.dataPrimoContatto ? new Date(ev.dataPrimoContatto).toLocaleDateString('it-IT') : '',
+        canale:    cp?.canalePrimoContatto ?? '',
       })
 
-      // Alternate row colors
-      if (index % 2 === 0) {
-        row.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'F3F4F6' }
-        }
+      if (idx % 2 === 0) {
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } }
       }
-
-      // Format currency columns
       row.getCell('prezzo').numFmt = '€#,##0.00'
       row.getCell('totale').numFmt = '€#,##0.00'
     })
 
-    // Add totals row
-    const lastDataRow = eventi.length + 1
-    const totalsRow = sheet.addRow({
-      mese: '',
-      evento: 'TOTALE',
-      sposa: '',
-      sposo: '',
-      menuPasto: '',
-      menuBuffet: '',
-      luogo: '',
-      fascia: '',
-      persone: { formula: `SUM(I2:I${lastDataRow})` },
+    // Riga totali
+    const lastData = eventi.length + 1
+    const totRow = sheetEventi.addRow({
+      data: '', tipo: '', titolo: 'TOTALE', sposa: '', sposo: '',
+      cliente: '', telefono: '', email: '', menuPasto: '', menuBuffet: '',
+      luogo: '', fascia: '',
+      persone: { formula: `SUM(M2:M${lastData})` },
       prezzo: '',
-      totale: { formula: `SUM(K2:K${lastDataRow})` }
+      totale:  { formula: `SUM(O2:O${lastData})` },
+      stato: '', regData: '', canale: ''
     })
+    totRow.font = { bold: true }
+    totRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'D4AF37' } }
+    totRow.getCell('totale').numFmt = '€#,##0.00'
 
-    totalsRow.font = { bold: true }
-    totalsRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'D4AF37' }
-    }
-    totalsRow.getCell('totale').numFmt = '€#,##0.00'
-
-    // Add borders to all cells
-    const lastRow = eventi.length + 2
-    for (let row = 1; row <= lastRow; row++) {
-      for (let col = 1; col <= 11; col++) {
-        const cell = sheet.getCell(row, col)
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'E5E7EB' } },
-          left: { style: 'thin', color: { argb: 'E5E7EB' } },
+    // Bordi
+    for (let r = 1; r <= eventi.length + 2; r++) {
+      for (let c = 1; c <= 18; c++) {
+        sheetEventi.getCell(r, c).border = {
+          top:    { style: 'thin', color: { argb: 'E5E7EB' } },
+          left:   { style: 'thin', color: { argb: 'E5E7EB' } },
           bottom: { style: 'thin', color: { argb: 'E5E7EB' } },
-          right: { style: 'thin', color: { argb: 'E5E7EB' } }
+          right:  { style: 'thin', color: { argb: 'E5E7EB' } }
         }
       }
     }
 
-    // Generate buffer
-    const buffer = await workbook.xlsx.writeBuffer()
+    // ──────────────────────────────────────────────────
+    // FOGLIO 2: Anagrafica Clienti
+    // ──────────────────────────────────────────────────
+    const sheetClienti = wb.addWorksheet('Anagrafica Clienti', {
+      properties: { tabColor: { argb: '3B82F6' } }
+    })
 
-    // Return Excel file
-    return new NextResponse(buffer, {
+    sheetClienti.columns = [
+      { header: 'Nome',               key: 'nome',       width: 18 },
+      { header: 'Cognome',            key: 'cognome',    width: 18 },
+      { header: 'Tipo',               key: 'tipo',       width: 14 },
+      { header: 'Telefono',           key: 'tel',        width: 16 },
+      { header: 'Tel. Alternativo',   key: 'telAlt',     width: 16 },
+      { header: 'Email',              key: 'email',      width: 26 },
+      { header: 'Indirizzo',          key: 'indirizzo',  width: 28 },
+      { header: 'CAP',                key: 'cap',        width: 8  },
+      { header: 'Città',              key: 'citta',      width: 16 },
+      { header: 'Codice Fiscale',     key: 'cf',         width: 16 },
+      { header: 'Secondo Contatto',   key: 'sec',        width: 22 },
+      { header: 'Tel. 2° Contatto',   key: 'secTel',     width: 16 },
+      { header: 'Email 2° Contatto',  key: 'secEmail',   width: 24 },
+      { header: 'Canale Contatto',    key: 'canale',     width: 16 },
+      { header: 'Data 1° Contatto',   key: 'primoContatto', width: 16 },
+      { header: 'N° Eventi',          key: 'nEventi',    width: 10 },
+      { header: 'Note',               key: 'note',       width: 30 },
+    ]
+
+    const h2 = sheetClienti.getRow(1)
+    h2.font = { bold: true, color: { argb: 'FFFFFF' }, size: 10 }
+    h2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E3A5F' } }
+    h2.alignment = { horizontal: 'center', vertical: 'middle' }
+    h2.height = 22
+
+    clienti.forEach((c, idx) => {
+      const row = sheetClienti.addRow({
+        nome:          c.nome,
+        cognome:       c.cognome ?? '',
+        tipo:          c.tipoCliente ?? '',
+        tel:           c.telefono ?? '',
+        telAlt:        c.telefonoAlt ?? '',
+        email:         c.email ?? '',
+        indirizzo:     c.indirizzo ?? '',
+        cap:           c.cap ?? '',
+        citta:         c.citta ?? '',
+        cf:            c.codiceFiscale ?? '',
+        sec:           c.secondoContattoNome ?? '',
+        secTel:        c.secondoContattoTelefono ?? '',
+        secEmail:      c.secondoContattoEmail ?? '',
+        canale:        c.canalePrimoContatto ?? '',
+        primoContatto: c.dataPrimoContatto ? new Date(c.dataPrimoContatto).toLocaleDateString('it-IT') : '',
+        nEventi:       c.eventi.length,
+        note:          c.notaAnagrafica ?? '',
+      })
+      if (idx % 2 === 0) {
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'EFF6FF' } }
+      }
+    })
+
+    for (let r = 1; r <= clienti.length + 1; r++) {
+      for (let c = 1; c <= 17; c++) {
+        sheetClienti.getCell(r, c).border = {
+          top:    { style: 'thin', color: { argb: 'E5E7EB' } },
+          left:   { style: 'thin', color: { argb: 'E5E7EB' } },
+          bottom: { style: 'thin', color: { argb: 'E5E7EB' } },
+          right:  { style: 'thin', color: { argb: 'E5E7EB' } }
+        }
+      }
+    }
+
+    // ──────────────────────────────────────────────────
+    // OUTPUT
+    // ──────────────────────────────────────────────────
+    const buffer = await wb.xlsx.writeBuffer()
+    const filename = `VillaParis_Report_${new Date().toISOString().split('T')[0]}.xlsx`
+
+    return new NextResponse(buffer as ArrayBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="VillaParis_Report_${new Date().toISOString().split('T')[0]}.xlsx"`,
-        'Cache-Control': 'no-cache'
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
       }
     })
   } catch (error) {
-    console.error('Error generating Excel report:', error)
-    return new NextResponse('Errore nella generazione del report', { status: 500 })
+    console.error('[Report Excel] Errore:', error)
+    return new NextResponse(
+      JSON.stringify({ error: 'Errore nella generazione del report', detail: String(error) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
   }
 }

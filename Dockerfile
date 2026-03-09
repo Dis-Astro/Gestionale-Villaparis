@@ -43,6 +43,16 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# ExcelJS e dipendenze (serverExternalPackages: non bundlati, servono nel runner)
+COPY --from=builder /app/node_modules/exceljs ./node_modules/exceljs
+COPY --from=builder /app/node_modules/archiver ./node_modules/archiver
+COPY --from=builder /app/node_modules/archiver-utils ./node_modules/archiver-utils
+COPY --from=builder /app/node_modules/unzipper ./node_modules/unzipper
+COPY --from=builder /app/node_modules/dayjs ./node_modules/dayjs
+COPY --from=builder /app/node_modules/saxes ./node_modules/saxes
+COPY --from=builder /app/node_modules/fast-csv ./node_modules/fast-csv
+COPY --from=builder /app/node_modules/bl ./node_modules/bl
+COPY --from=builder /app/node_modules/readable-stream ./node_modules/readable-stream
 
 # Copy entrypoint
 COPY docker/entrypoint.sh ./entrypoint.sh
