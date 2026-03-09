@@ -2,94 +2,37 @@
 
 ## Problema originale
 Sistema gestionale per location eventi (matrimoni, battesimi, feste).
-L'utente vuole un'applicazione finita, pulita e facilmente deployabile.
-
-## Target
-Gestori di Villa Paris (location eventi).
 
 ## Requisiti implementati
 
-### UI & Layout
-- [x] Layout AppShell (sidebar + topbar) unificato su tutte le pagine
-- [x] Navigazione coerente tra dashboard, calendario, eventi, clienti, report
-- [x] Breadcrumb con chiavi univoche (fix bug React key duplicata)
-
 ### Funzionalita Core
-- [x] Dashboard con KPI e statistiche
-- [x] Calendario eventi con appuntamenti rapidi (1-click)
-- [x] Calendario: Year picker (2024-2030) e input "Vai a data"
-- [x] Calendario: Tooltip hover con dettagli evento
-- [x] Calendario: Doppio click per aprire scheda completa
-- [x] Gestione eventi CRUD completa
-- [x] Menu Base - template con selezione piatti
-- [x] Piantina sala - drag & drop con varianti alimentari
-- [x] Stampe PDF - contratti e documenti operativi
-- [x] Report con export Excel (multi-foglio: Report Aziendale + Anagrafica Clienti)
-- [x] Report: grafici (Ricavi/Eventi/Ospiti per mese, Eventi per tipo)
-- [x] Versioning - snapshot anti-contestazione
-- [x] Blocco automatico modifiche a -10 giorni
-
-### Flusso Evento & Canale Contatto
-- [x] Canale di contatto (Telefono, Mail, Matrimonio.com, Social, Passaparola, Altro) nel form Nuovo Evento
-- [x] Canale di contatto nel modal Appuntamento Rapido (calendario)
-- [x] Due anagrafiche separate per evento: Sposa/Festeggiata + Sposo (2 record Cliente distinti)
-- [x] Auto-show sezione Sposo quando tipo = Matrimonio
-- [x] canalePrimoContatto salvato sia su Evento che su Cliente
+- [x] Dashboard con KPI e statistiche (dati reali: 79 eventi, 92 clienti)
+- [x] Calendario eventi con appuntamenti rapidi, year picker, tooltip, doppio click
+- [x] Gestione eventi CRUD con due anagrafiche separate (sposa/sposo)
+- [x] Canale contatto (Telefono, Mail, Matrimonio.com, Social, Passaparola, Altro) in: form nuovo evento, appuntamento rapido, form clienti
+- [x] Menu Base, Piantina sala, Stampe PDF
+- [x] Report con export Excel: header "Data Evento" con giorno della settimana
+- [x] Versioning anti-contestazione
 
 ### Anagrafica Clienti
-- [x] CRUD completo clienti
-- [x] Canale contatto e tipo cliente nel form clienti
-- [x] Rimossa sezione "secondo contatto" (2 persone = 2 anagrafiche separate)
-- [x] Export CSV clienti
-- [x] Ricerca clienti per nome, email, telefono, citta
+- [x] CRUD completo (senza secondo contatto - due persone = due record separati)
+- [x] Canale contatto + tipo cliente nel form
+- [x] Export CSV, ricerca avanzata
 
-### Database & Backend
-- [x] Migrazione da SQLite a PostgreSQL (produzione)
-- [x] Prisma ORM con schema aggiornato (canalePrimoContatto su Evento)
-- [x] API eventi supporta creazione multipla clienti
-- [x] Singleton client Prisma per connessioni efficienti
+### Database
+- [x] 79 eventi e 92 clienti importati dal file Excel reale dell'utente
+- [x] Date salvate in epoch ms (formato Prisma SQLite)
+- [x] Script seed: scripts/seed_data.py
 
-### Deploy & Infrastructure
-- [x] Dockerfile multi-stage per Next.js 15
-- [x] docker-compose.yml con variabili d'ambiente
-- [x] docker/entrypoint.sh per migrazioni automatiche all'avvio
-- [x] Script Proxmox one-liner (install-ct.sh + ct-setup.sh)
-- [x] GitHub Actions CI/CD deploy automatico
+### Deploy
+- [x] Dockerfile, docker-compose, entrypoint, Proxmox scripts
+- [x] GitHub Actions CI/CD
 
-## Architettura
-```
-/app
-├── prisma/
-│   ├── schema.dev.prisma      # SQLite (dev/preview)
-│   └── schema.prisma          # PostgreSQL (produzione)
-├── src/
-│   ├── app/
-│   │   ├── (app)/             # Pagine con layout AppShell
-│   │   │   ├── calendario/    # Calendar + appuntamento rapido + canale
-│   │   │   ├── clienti/       # Anagrafica senza 2 contatto
-│   │   │   ├── nuovo-evento/  # 2 clienti + canale contatto
-│   │   │   └── ...
-│   │   └── api/               # API Routes Next.js
-│   └── components/
-├── docker-compose.yml
-├── Dockerfile
-└── README.md
-```
+## Stack
+Next.js 15, React, TypeScript, Tailwind, shadcn/ui, Prisma, SQLite/PostgreSQL, exceljs, pdfmake, recharts, FullCalendar
 
-## Stack Tecnologico
-- Frontend: Next.js 15 (App Router), React, TypeScript, Tailwind CSS, shadcn/ui
-- Backend: Next.js API Routes
-- Database: PostgreSQL 16 (prod) + SQLite (dev) + Prisma ORM
-- Deploy: Docker, Docker Compose, Bash (Proxmox LXC)
-- Librerie: pdfmake, exceljs, react-dnd, recharts, FullCalendar
-
-## Backlog P1/P2
-
-### P1 - Upcoming
-- [ ] Pagina Impostazioni (attualmente placeholder)
-- [ ] Ripristino versione evento (API + UI button)
-- [ ] Webhook GitHub Actions per deploy continuo su Proxmox
-
-### P2 - Backlog
-- [ ] CRUD Clienti migliorato (filtri avanzati)
-- [ ] Fix doppio click su tavoli sovrapposti nella piantina
+## Backlog
+- [ ] P1: Pagina Impostazioni
+- [ ] P1: Ripristino versione evento
+- [ ] P2: CRUD Clienti migliorato
+- [ ] P2: Fix doppio click tavoli sovrapposti piantina
