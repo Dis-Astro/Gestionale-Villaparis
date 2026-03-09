@@ -207,7 +207,7 @@ export async function PUT(req: Request) {
         note: body.note,
         menu: toJson(body.menu),
         struttura: toJson(body.struttura),
-        disposizioneSala: body.disposizioneSala || null,
+        disposizioneSala: toJson(body.disposizioneSala),
         dateProposte: toJson(body.dateProposte ?? []),
         // Campi report aziendale
         luogo: body.luogo || null,

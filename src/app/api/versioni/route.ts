@@ -127,7 +127,7 @@ export async function POST(req: Request) {
         numero: nuovoNumero,
         tipo,
         watermark,
-        snapshot,
+        snapshot: JSON.stringify(snapshot),
         hash,
         autore: autore || null,
         commento: commento || `Versione ${tipo} - ${watermark}`

@@ -46,13 +46,18 @@ export default function ModificaEventoPage() {
       const res = await fetch(`/api/eventi?id=${id}`)
       const data = await res.json()
 
-      if (!Array.isArray(data.dateProposte)) {
-        data.dateProposte = []
+      // Parse JSON string fields from SQLite
+      const parseJson = (val: any, fallback: any) => {
+        if (typeof val === 'string') {
+          try { return JSON.parse(val) } catch { return fallback }
+        }
+        return val ?? fallback
       }
+      data.dateProposte = Array.isArray(data.dateProposte) ? data.dateProposte : parseJson(data.dateProposte, [])
       data.dataConfermata = data.dataConfermata ? data.dataConfermata.slice(0, 10) : ''
-      data.menu = data.menu || {}
-      data.struttura = data.struttura || {}
-      data.disposizioneSala = data.disposizioneSala || { tavoli: [], stazioni: [], immagine: '' }
+      data.menu = parseJson(data.menu, {})
+      data.struttura = parseJson(data.struttura, {})
+      data.disposizioneSala = parseJson(data.disposizioneSala, { tavoli: [], stazioni: [], immagine: '' })
       
       if (data._blocco) {
         setInfoBlocco(data._blocco)
