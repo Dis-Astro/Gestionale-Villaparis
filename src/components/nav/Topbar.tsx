@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { 
   Menu, 
   Search, 
   Bell, 
   ChevronRight,
-  Home
+  Home,
+  Calendar,
+  Clock,
+  X
 } from 'lucide-react'
 
 interface TopbarProps {
@@ -30,6 +33,118 @@ const pathLabels: Record<string, string> = {
   '/modifica-evento': 'Modifica Evento',
   '/piantina-evento': 'Piantina Evento',
   '/gestione-menu': 'Gestione Menu'
+}
+
+interface Notifica {
+  id: string
+  testo: string
+  tipo: 'evento' | 'sistema'
+  data: string
+  letta: boolean
+}
+
+function NotificheDropdown() {
+  const [open, setOpen] = useState(false)
+  const [notifiche, setNotifiche] = useState<Notifica[]>([])
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    async function loadNotifiche() {
+      try {
+        const res = await fetch('/api/eventi')
+        if (!res.ok) return
+        const eventi = await res.json()
+        const oggi = new Date()
+        const nots: Notifica[] = []
+
+        for (const ev of eventi) {
+          if (!ev.dataConfermata) continue
+          const d = new Date(ev.dataConfermata)
+          const diff = Math.ceil((d.getTime() - oggi.getTime()) / 86400000)
+          if (diff > 0 && diff <= 30) {
+            nots.push({
+              id: `ev-${ev.id}`,
+              testo: `${ev.titolo} tra ${diff} giorni`,
+              tipo: 'evento',
+              data: d.toLocaleDateString('it-IT'),
+              letta: diff > 7
+            })
+          }
+        }
+        nots.sort((a, b) => {
+          const da = new Date(a.data.split('/').reverse().join('-'))
+          const db = new Date(b.data.split('/').reverse().join('-'))
+          return da.getTime() - db.getTime()
+        })
+        setNotifiche(nots.slice(0, 10))
+      } catch { /* ignora */ }
+    }
+    loadNotifiche()
+  }, [])
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const nonLette = notifiche.filter(n => !n.letta).length
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        className="relative p-2 hover:bg-gray-100 rounded-lg"
+        aria-label="Notifiche"
+        onClick={() => setOpen(!open)}
+        data-testid="notifiche-btn"
+      >
+        <Bell className="w-5 h-5 text-gray-500" />
+        {nonLette > 0 && (
+          <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 rounded-full flex items-center justify-center">
+            <span className="text-[10px] text-white font-bold">{nonLette}</span>
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border z-50 overflow-hidden" data-testid="notifiche-panel">
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+            <h3 className="text-sm font-bold text-gray-800">Notifiche</h3>
+            <button onClick={() => setOpen(false)} className="p-1 hover:bg-gray-200 rounded">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {notifiche.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-400">
+                Nessun evento imminente
+              </div>
+            ) : (
+              notifiche.map(n => (
+                <div
+                  key={n.id}
+                  className={`px-4 py-3 border-b last:border-0 flex items-start gap-3 hover:bg-gray-50 ${!n.letta ? 'bg-amber-50' : ''}`}
+                >
+                  <Calendar className={`w-4 h-4 mt-0.5 flex-shrink-0 ${!n.letta ? 'text-amber-500' : 'text-gray-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm truncate ${!n.letta ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                      {n.testo}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {n.data}
+                    </p>
+                  </div>
+                  {!n.letta && <span className="w-2 h-2 bg-amber-500 rounded-full mt-1.5 flex-shrink-0" />}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function Topbar({ onMenuClick }: TopbarProps) {
@@ -152,14 +267,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           </div>
 
           {/* Notifications */}
-          <button
-            className="relative p-2 hover:bg-gray-100 rounded-lg"
-            aria-label="Notifiche"
-          >
-            <Bell className="w-5 h-5 text-gray-500" />
-            {/* Badge notifiche */}
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
+          <NotificheDropdown />
 
           {/* User avatar (mobile) */}
           <button className="lg:hidden p-1">

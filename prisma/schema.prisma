@@ -29,8 +29,9 @@ model Evento {
   menuBuffet       String?
   sposa            String?
   sposo            String?
-  // Data primo contatto commerciale → appare nel calendario come "Registrazione"
-  dataPrimoContatto DateTime?
+  // Data primo contatto commerciale
+  dataPrimoContatto    DateTime?
+  canalePrimoContatto  String?
   
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
