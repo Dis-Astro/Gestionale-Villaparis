@@ -34,6 +34,7 @@ export default function VillaPiantina({
   const [planimetriaSelezionata, setPlanimetriaSelezionata] = useState<string | null>(null)
   const [tavoloVariantiAperto, setTavoloVariantiAperto] = useState<TavoloType | null>(null)
   const [showEditor, setShowEditor] = useState(false)
+  const [editorMode, setEditorMode] = useState<'upload' | 'edit'>('upload')
   const [editorSource, setEditorSource] = useState<string | null>(null)
   const [editorZoom, setEditorZoom] = useState(1)
   const [editorRotation, setEditorRotation] = useState(0)
@@ -160,6 +161,7 @@ export default function VillaPiantina({
     const reader = new FileReader()
     reader.onload = (event) => {
       const imgSrc = event.target?.result as string
+      setEditorMode('upload')
       setEditorSource(imgSrc)
       setEditorZoom(1)
       setEditorRotation(0)
@@ -172,6 +174,7 @@ export default function VillaPiantina({
   }
 
   const apriEditorSuImmagine = (src: string) => {
+    setEditorMode('edit')
     setEditorSource(src)
     setEditorZoom(1)
     setEditorRotation(0)
@@ -469,14 +472,26 @@ export default function VillaPiantina({
                 <Crop className="w-4 h-4" />
                 Ritaglia e Ruota Planimetria
               </h3>
-              <button
-                type="button"
-                onClick={() => setShowEditor(false)}
-                className="text-sm text-gray-500 hover:text-gray-700"
-                data-testid="planimetria-editor-close-btn"
-              >
-                Chiudi
-              </button>
+              <div className="flex items-center gap-2">
+                {editorMode === 'upload' && (
+                  <button
+                    type="button"
+                    onClick={() => setEditorRotation((prev) => (prev + 90) % 360)}
+                    className="px-2 py-1 rounded border text-sm text-gray-700"
+                    data-testid="planimetria-editor-rotate-90-btn"
+                  >
+                    Ruota 90°
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowEditor(false)}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                  data-testid="planimetria-editor-close-btn"
+                >
+                  Chiudi
+                </button>
+              </div>
             </div>
 
             <div className="p-5 space-y-4">
@@ -527,19 +542,6 @@ export default function VillaPiantina({
                     onChange={(e) => setEditorZoom(Number(e.target.value))}
                     className="w-full"
                     data-testid="planimetria-editor-zoom-slider"
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-gray-600">Rotazione</span>
-                  <input
-                    type="range"
-                    min={-180}
-                    max={180}
-                    step={1}
-                    value={editorRotation}
-                    onChange={(e) => setEditorRotation(Number(e.target.value))}
-                    className="w-full"
-                    data-testid="planimetria-editor-rotation-slider"
                   />
                 </label>
                 <label className="space-y-1">
