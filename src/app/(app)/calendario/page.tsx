@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
@@ -112,7 +112,9 @@ function EventTooltip({ info, onClose }: { info: TooltipInfo; onClose: () => voi
 export default function CalendarioPage() {
   const router = useRouter()
   const calendarRef = useRef<any>(null)
-  const [dataSelezionata, setDataSelezionata] = useState("")
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const [dataSelezionata, setDataSelezionata] = useState(todayIso)
+  const [ricercaEvento, setRicercaEvento] = useState('')
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [eventi, setEventi] = useState<any[]>([])
   const [eventiDelGiorno, setEventiDelGiorno] = useState<any[]>([])
@@ -155,6 +157,65 @@ export default function CalendarioPage() {
   }, [])
 
   useEffect(() => { fetchEventi() }, [fetchEventi, calendarKey])
+
+  const goToDate = useCallback((val: string) => {
+    if (!val) return
+    setDataSelezionata(val)
+    const y = new Date(val).getFullYear()
+    setCurrentYear(y)
+    const cal = calendarRef.current?.getApi()
+    if (cal) cal.gotoDate(val)
+
+    setEventiDelGiorno(eventi.filter(e =>
+      e.dataConfermata === val ||
+      e.dataPrimoContatto === val ||
+      (Array.isArray(e.dateProposte) && e.dateProposte.includes(val))
+    ))
+    setShowAppuntamento(false)
+  }, [eventi])
+
+  const prossimoEvento = useMemo(() => {
+    const now = new Date(`${todayIso}T00:00:00`).getTime()
+    const candidati = eventi
+      .filter((ev) => ev.stato !== 'annullato')
+      .map((ev) => {
+        const data = ev.dataConfermata || ev.dataPrimoContatto || ev.dateProposte?.[0]
+        if (!data) return null
+        return {
+          id: ev.id,
+          titolo: ev.titolo,
+          data,
+          diff: new Date(`${data}T00:00:00`).getTime() - now
+        }
+      })
+      .filter((x): x is { id: number; titolo: string; data: string; diff: number } => Boolean(x))
+      .filter(x => x.diff >= 0)
+      .sort((a, b) => a.diff - b.diff)
+
+    return candidati[0] || null
+  }, [eventi, todayIso])
+
+  const risultatiRicerca = useMemo(() => {
+    const q = ricercaEvento.trim().toLowerCase()
+    if (q.length < 2) return []
+
+    return eventi
+      .map((ev) => {
+        const cliente = ev.clienti?.[0]?.cliente
+        const nomeCliente = [cliente?.nome, cliente?.cognome].filter(Boolean).join(' ').trim()
+        const data = ev.dataConfermata || ev.dataPrimoContatto || ev.dateProposte?.[0] || ''
+        return {
+          id: ev.id,
+          titolo: ev.titolo || 'Evento',
+          nomeCliente,
+          data,
+          search: `${ev.titolo || ''} ${nomeCliente}`.toLowerCase()
+        }
+      })
+      .filter((row) => row.data && row.search.includes(q))
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .slice(0, 8)
+  }, [eventi, ricercaEvento])
 
   const handleDateClick = (arg: any) => {
     const data = arg.dateStr
@@ -376,17 +437,56 @@ export default function CalendarioPage() {
                 type="date"
                 className="border rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-amber-500"
                 value={dataSelezionata}
-                onChange={e => {
-                  const val = e.target.value
-                  setDataSelezionata(val)
-                  if (val) {
-                    const y = new Date(val).getFullYear()
-                    setCurrentYear(y)
-                    const cal = calendarRef.current?.getApi()
-                    if (cal) cal.gotoDate(val)
-                  }
-                }}
+                onChange={e => goToDate(e.target.value)}
+                data-testid="calendario-vai-data-input"
               />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToDate(todayIso)}
+                data-testid="calendario-oggi-rapido-btn"
+              >
+                Oggi
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!prossimoEvento}
+                onClick={() => prossimoEvento && goToDate(prossimoEvento.data)}
+                data-testid="calendario-prossimo-evento-btn"
+              >
+                Prossimo evento
+              </Button>
+            </div>
+
+            <div className="w-full md:max-w-sm relative" data-testid="calendario-ricerca-wrapper">
+              <Input
+                value={ricercaEvento}
+                onChange={(e) => setRicercaEvento(e.target.value)}
+                placeholder="Cerca evento o cliente..."
+                data-testid="calendario-cerca-evento-input"
+              />
+              {risultatiRicerca.length > 0 && (
+                <div className="absolute top-full mt-1 w-full bg-white border rounded-lg shadow-lg z-20 overflow-hidden" data-testid="calendario-cerca-risultati">
+                  {risultatiRicerca.map((r) => (
+                    <button
+                      key={`${r.id}-${r.data}`}
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0"
+                      onClick={() => {
+                        goToDate(r.data)
+                        setRicercaEvento('')
+                      }}
+                      data-testid={`calendario-cerca-risultato-${r.id}-${r.data}`}
+                    >
+                      <p className="text-sm font-medium text-gray-800 truncate">{r.titolo}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {r.nomeCliente || 'Cliente non associato'} · {new Date(`${r.data}T12:00:00`).toLocaleDateString('it-IT')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -400,7 +500,7 @@ export default function CalendarioPage() {
             key={calendarKey}
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
-            initialDate={dataSelezionata || `${currentYear}-01-01`}
+            initialDate={dataSelezionata || todayIso}
             dateClick={handleDateClick}
             eventMouseEnter={handleEventMouseEnter}
             eventMouseLeave={handleEventMouseLeave}
