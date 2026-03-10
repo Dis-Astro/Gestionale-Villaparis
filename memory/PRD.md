@@ -4,33 +4,42 @@
 Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa Paris, con installazione semplice su Proxmox tramite comando one-liner.
 
 ## Stato attuale
-**P0 in corso (bloccato su azione utente):** correzione deploy completata localmente, da pubblicare su GitHub.
+**P0 deploy COMPLETATO:** installazione Proxmox confermata dall’utente.
 
-## Ultimo aggiornamento (fork corrente)
-- Verificato che il `Dockerfile` usa `npm install` (non `npm ci`) nello stage dipendenze: fix principale per errore build su Proxmox.
-- Verificato che `proxmox/install-ct.sh` e `proxmox/ct-setup.sh` puntano di default al branch `OPUS`.
-- Aggiornato `README.md`:
-  - default `REPO_BRANCH` corretto a `OPUS`
-  - nota esplicita: serve **Save to Github** prima di rilanciare il one-liner Proxmox.
+## Ultimo aggiornamento (10-03-2026)
+- Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
+- Calendario ottimizzato:
+  - avvio su data odierna
+  - ricerca evento/cliente con jump rapido
+  - filtri rapidi (Tutti/Confermati/Opzionati/Appuntamenti)
+  - scorciatoie `+1 settimana` e `+1 mese`
+- Flusso menu reso più semplice per operatore:
+  - in **Nuovo Evento** aggiunta sezione “Menu Evento (Easy)” con menu base, sovrapprezzo/persona, extra accordi
+  - conversione automatica da menu base a menu evento personalizzabile
+  - `MenuBaseSelector` semplificato (caricamento template + gestione menu base)
+- Piantina migliorata (iPad/desktop):
+  - tavoli e stazioni ridimensionabili (slider + maniglia drag)
+  - salvataggio disposizione con supporto override blocco -10 giorni
+  - export PNG, export PDF e stampa migliorata
+- Report Excel aggiornato:
+  - colonna `Prezzo/Persona` aggiunta
+  - fallback automatico a `struttura.prezzo` se `evento.prezzo` non presente
 
-## Requisito critico aperto (P0)
-Per risolvere definitivamente il deploy:
-1. Usare **Save to Github** sul branch usato da Proxmox (`OPUS`).
-2. Rilanciare il comando:
-   ```bash
-   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Dis-Astro/villa-paris-gestionale/OPUS/proxmox/install-ct.sh)"
-   ```
-3. Inviare log completo se compare un nuovo errore.
+## Validazione
+- Test TypeScript: `npx tsc --noEmit` ✅
+- Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
+- Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
 
 ## Stato funzionalità applicative
-- Bug critici precedenti risultano corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, menu notifiche.
+- Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
+- Nuove richieste operative menu/piantina/report implementate e validate.
 
 ## Stack
 Next.js 15, React, TypeScript, Tailwind, shadcn/ui, Prisma, SQLite (dev) / PostgreSQL (prod), exceljs, pdfmake, recharts, FullCalendar, Docker.
 
 ## Backlog prioritizzato
-- **P1**: Pagina Impostazioni (completamento/refine).
-- **P1**: Ripristino versione evento (API + UI).
+- **P1**: Rendere la selezione menu base sempre disponibile anche in Modifica Evento con flusso guidato (non solo primo caricamento).
+- **P1**: Preset rapidi planimetria (layout standard matrimonio/comunione/compleanno).
 - **P2**: CRUD Clienti migliorato (filtri avanzati / UX).
 - **P2**: Fix doppio click tavoli sovrapposti in piantina.
 - **P2**: Riduzione warning locale durante installazione dipendenze container.
