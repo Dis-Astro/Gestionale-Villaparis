@@ -23,6 +23,7 @@ type TavoloProps = {
   onRotate: (rot: number) => void
   onDelete: () => void
   onRename: (nome: string) => void
+  onResize: (dimensionePerc: number) => void
   onOpenVarianti?: () => void  // Nuovo callback per aprire pannello varianti
   editabile: boolean
   containerRef: React.RefObject<HTMLDivElement | null>
@@ -36,6 +37,7 @@ export default function Tavolo({
   onRotate,
   onDelete,
   onRename,
+  onResize,
   onOpenVarianti,
   editabile,
   containerRef
@@ -109,6 +111,30 @@ export default function Tavolo({
     }
   }
 
+  const clampDimension = (value: number) => Math.max(0.04, Math.min(0.22, value))
+
+  const handleResizePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    if (!editabile) return
+
+    const startX = e.clientX
+    const startSize = tavolo.dimensionePerc ?? 0.1
+
+    const handlePointerMove = (ev: PointerEvent) => {
+      const deltaPx = ev.clientX - startX
+      const deltaPerc = deltaPx / Math.max(containerSize.width, 1)
+      onResize(clampDimension(startSize + deltaPerc))
+    }
+
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+  }
+
   return (
     <div
       ref={ref}
@@ -172,12 +198,12 @@ export default function Tavolo({
         <div 
           style={{ 
             position: 'absolute',
-            bottom: -45,
+            bottom: -52,
             left: '50%',
             transform: 'translateX(-50%)',
             background: '#fff', 
             borderRadius: 8, 
-            padding: '4px 8px',
+            padding: '6px 8px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             display: 'flex',
             gap: 4,
@@ -230,8 +256,42 @@ export default function Tavolo({
               padding: '2px 4px',
               textAlign: 'center'
             }}
+            data-testid={`rename-tavolo-${tavolo.id}`}
+          />
+          <input
+            type="range"
+            min={0.04}
+            max={0.22}
+            step={0.005}
+            value={tavolo.dimensionePerc ?? 0.1}
+            onChange={(e) => onResize(clampDimension(parseFloat(e.target.value)))}
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 76 }}
+            data-testid={`resize-slider-tavolo-${tavolo.id}`}
           />
         </div>
+      )}
+
+      {editabile && selected && (
+        <button
+          type="button"
+          onPointerDown={handleResizePointerDown}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            right: -6,
+            bottom: -6,
+            width: 14,
+            height: 14,
+            borderRadius: 999,
+            border: '2px solid white',
+            background: '#2563eb',
+            cursor: 'nwse-resize',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
+          }}
+          data-testid={`resize-handle-tavolo-${tavolo.id}`}
+          aria-label={`Ridimensiona tavolo ${tavolo.numero}`}
+        />
       )}
     </div>
   )

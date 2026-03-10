@@ -62,6 +62,10 @@ export async function POST(req: Request) {
         menu: toJson(body.menu || {}),
         struttura: toJson(body.struttura || {}),
         disposizioneSala: body.disposizioneSala || null,
+        luogo: body.luogo || null,
+        prezzo: body.prezzo ? parseFloat(body.prezzo) : null,
+        menuPasto: body.menuPasto || null,
+        menuBuffet: body.menuBuffet || null,
         sposa: body.sposa || null,
         sposo: body.sposo || null,
         clienti: {

@@ -523,9 +523,15 @@ export default function ModificaEventoPage() {
                 {!evento.struttura || Object.keys(evento.struttura).length === 0 ? (
                   <MenuBaseSelector
                     current={evento.menu}
-                    onLoad={(struttura, selezione) => {
+                    onGoToMenuBase={() => router.push('/menu-base')}
+                    onLoad={({ struttura, menu, menuPasto, prezzo }) => {
                       aggiornaStruttura(struttura)
-                      aggiornaMenu(selezione)
+                      aggiornaMenu(menu)
+                      setEvento((prev: any) => ({
+                        ...prev,
+                        menuPasto,
+                        prezzo: prev?.prezzo || prezzo || ''
+                      }))
                     }}
                   />
                 ) : (

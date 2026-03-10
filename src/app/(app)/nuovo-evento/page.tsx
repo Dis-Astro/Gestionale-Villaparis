@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
+import { buildMenuEventoFromStruttura, getPrezzoDaStruttura, normalizeStrutturaMenuBase } from "@/lib/menu-utils"
 import { 
-  Plus, Save, ArrowLeft, Calendar, Users, X, Phone
+  Plus, Save, ArrowLeft, Calendar, Users, X, Phone, UtensilsCrossed, Euro
 } from "lucide-react"
 
 const tipiEvento = [
@@ -66,8 +67,17 @@ function NuovoEventoContent() {
     fascia: "pranzo",
     personePreviste: "",
     note: "",
-    stato: "in_attesa"
+    stato: "in_attesa",
+    menu: {} as any,
+    struttura: {} as any,
+    menuPasto: "",
+    prezzo: ""
   })
+
+  const [menuBaseList, setMenuBaseList] = useState<any[]>([])
+  const [menuBaseSelezionato, setMenuBaseSelezionato] = useState('')
+  const [extraPietanze, setExtraPietanze] = useState('')
+  const [sovrapprezzo, setSovrapprezzo] = useState('0')
   
   const [isSaving, setIsSaving] = useState(false)
   
@@ -86,6 +96,47 @@ function NuovoEventoContent() {
       setShowCliente2(true)
     }
   }, [evento.tipo])
+
+  useEffect(() => {
+    fetch('/api/menu-base')
+      .then((res) => res.json())
+      .then((data) => setMenuBaseList(Array.isArray(data) ? data : []))
+      .catch(() => setMenuBaseList([]))
+  }, [])
+
+  const menuSelezionato = menuBaseList.find((m) => String(m.id) === menuBaseSelezionato)
+  const prezzoBaseMenu = menuSelezionato ? getPrezzoDaStruttura(menuSelezionato.struttura) : null
+  const sovrapprezzoNum = Number.parseFloat(sovrapprezzo || '0') || 0
+  const prezzoFinaleMenu = prezzoBaseMenu !== null ? Number((prezzoBaseMenu + sovrapprezzoNum).toFixed(2)) : null
+
+  const handleSelezionaMenuBase = (id: string) => {
+    setMenuBaseSelezionato(id)
+    if (!id) {
+      setEvento(prev => ({
+        ...prev,
+        struttura: {},
+        menu: {},
+        menuPasto: '',
+        prezzo: ''
+      }))
+      return
+    }
+
+    const selezionato = menuBaseList.find((m) => String(m.id) === id)
+    if (!selezionato) return
+
+    const struttura = normalizeStrutturaMenuBase(selezionato.struttura)
+    const menu = buildMenuEventoFromStruttura(struttura)
+    const prezzoBase = getPrezzoDaStruttura(struttura)
+
+    setEvento(prev => ({
+      ...prev,
+      struttura,
+      menu,
+      menuPasto: selezionato.nome,
+      prezzo: prezzoBase !== null ? String(prezzoBase) : prev.prezzo
+    }))
+  }
 
   const toggleDataDaCalendario = (arg: any) => {
     const data = arg.dateStr
@@ -134,10 +185,23 @@ function NuovoEventoContent() {
       })
     }
 
+    const noteExtra = extraPietanze.trim()
+      ? `\n\nExtra / accordi speciali:\n${extraPietanze.trim()}`
+      : ''
+
+    const menuPayload = evento.menu && typeof evento.menu === 'object'
+      ? {
+          ...evento.menu,
+          note: `${evento.menu.note || ''}${noteExtra}`.trim()
+        }
+      : evento.menu
+
     const payload = {
       ...evento,
       clienti,
+      menu: menuPayload,
       canalePrimoContatto,
+      prezzo: prezzoFinaleMenu ?? (evento.prezzo ? parseFloat(String(evento.prezzo)) : null),
       personePreviste: parseInt(evento.personePreviste || "0"),
       sposa: `${cliente1.nome} ${cliente1.cognome}`.trim(),
       sposo: showCliente2 && cliente2.nome.trim() ? `${cliente2.nome} ${cliente2.cognome}`.trim() : ''
@@ -358,6 +422,84 @@ function NuovoEventoContent() {
                 value={evento.note} 
                 onChange={(e) => setEvento({...evento, note: e.target.value})}
                 rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Menu Evento (easy flow) */}
+        <Card className="lg:col-span-2" data-testid="nuovo-evento-menu-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UtensilsCrossed className="w-5 h-5 text-amber-500" />
+              Menu Evento (Easy)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Menu Base</label>
+                <select
+                  value={menuBaseSelezionato}
+                  onChange={(e) => handleSelezionaMenuBase(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500"
+                  data-testid="nuovo-evento-menu-base-select"
+                >
+                  <option value="">-- Nessun menu base --</option>
+                  {menuBaseList.map((m) => {
+                    const prezzo = getPrezzoDaStruttura(m.struttura)
+                    return (
+                      <option key={m.id} value={String(m.id)}>
+                        {m.nome}{prezzo !== null ? ` — €${prezzo}/persona` : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sovrapprezzo per persona (€)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={sovrapprezzo}
+                  onChange={(e) => setSovrapprezzo(e.target.value)}
+                  data-testid="nuovo-evento-sovrapprezzo-input"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3" data-testid="nuovo-evento-prezzo-menu-info">
+                <p className="text-sm text-amber-900 font-medium flex items-center gap-2">
+                  <Euro className="w-4 h-4" /> Prezzo menu per persona
+                </p>
+                <p className="text-lg font-bold text-amber-700 mt-1">
+                  {prezzoFinaleMenu !== null ? `€ ${prezzoFinaleMenu.toFixed(2)}` : 'Non definito nel menu base'}
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Base: {prezzoBaseMenu !== null ? `€ ${prezzoBaseMenu.toFixed(2)}` : '—'} · Sovrapprezzo: € {sovrapprezzoNum.toFixed(2)}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 border rounded-lg p-3" data-testid="nuovo-evento-menu-customization-hint">
+                <p className="text-sm font-medium text-gray-800">Personalizzazione evento</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Il template resta invariato: dopo il salvataggio puoi rifinire il menu evento con piatti aggiuntivi.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Extra / accordi speciali (piatti fuori menu, sovrapprezzi, eccezioni)
+              </label>
+              <Textarea
+                value={extraPietanze}
+                onChange={(e) => setExtraPietanze(e.target.value)}
+                rows={3}
+                placeholder="Es: Aggiungere risotto ai funghi per tavolo sposi (+€3/persona), buffet dolci premium..."
+                data-testid="nuovo-evento-menu-extra-textarea"
               />
             </div>
           </CardContent>

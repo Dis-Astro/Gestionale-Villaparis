@@ -115,6 +115,7 @@ export default function CalendarioPage() {
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
   const [dataSelezionata, setDataSelezionata] = useState(todayIso)
   const [ricercaEvento, setRicercaEvento] = useState('')
+  const [filtroVista, setFiltroVista] = useState('tutti')
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [eventi, setEventi] = useState<any[]>([])
   const [eventiDelGiorno, setEventiDelGiorno] = useState<any[]>([])
@@ -217,6 +218,18 @@ export default function CalendarioPage() {
       .slice(0, 8)
   }, [eventi, ricercaEvento])
 
+  const aggiungiGiorni = useCallback((isoDate: string, days: number) => {
+    const d = new Date(`${isoDate}T00:00:00`)
+    d.setDate(d.getDate() + days)
+    return d.toISOString().slice(0, 10)
+  }, [])
+
+  const aggiungiMesi = useCallback((isoDate: string, months: number) => {
+    const d = new Date(`${isoDate}T00:00:00`)
+    d.setMonth(d.getMonth() + months)
+    return d.toISOString().slice(0, 10)
+  }, [])
+
   const handleDateClick = (arg: any) => {
     const data = arg.dateStr
     setDataSelezionata(data)
@@ -282,6 +295,18 @@ export default function CalendarioPage() {
 
     return result
   })
+
+  const eventiCalendarioFiltrati = useMemo(() => {
+    if (filtroVista === 'tutti') return eventiCalendario
+
+    return eventiCalendario.filter((item: any) => {
+      const ruolo = item?.extendedProps?.ruolo
+      if (filtroVista === 'confermati') return ruolo === 'confermato'
+      if (filtroVista === 'opzionati') return ruolo === 'opzionato'
+      if (filtroVista === 'appuntamenti') return ruolo === 'appuntamento'
+      return true
+    })
+  }, [eventiCalendario, filtroVista])
 
   // Hover tooltip
   const handleEventMouseEnter = (info: any) => {
@@ -457,6 +482,22 @@ export default function CalendarioPage() {
               >
                 Prossimo evento
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToDate(aggiungiGiorni(dataSelezionata || todayIso, 7))}
+                data-testid="calendario-prossima-settimana-btn"
+              >
+                +1 settimana
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToDate(aggiungiMesi(dataSelezionata || todayIso, 1))}
+                data-testid="calendario-prossimo-mese-btn"
+              >
+                +1 mese
+              </Button>
             </div>
 
             <div className="w-full md:max-w-sm relative" data-testid="calendario-ricerca-wrapper">
@@ -488,6 +529,30 @@ export default function CalendarioPage() {
                 </div>
               )}
             </div>
+
+            <div className="w-full flex flex-wrap items-center gap-2" data-testid="calendario-filtri-wrap">
+              <span className="text-sm text-gray-500 mr-1">Filtra:</span>
+              {[
+                { id: 'tutti', label: 'Tutti' },
+                { id: 'confermati', label: 'Confermati' },
+                { id: 'opzionati', label: 'Opzionati' },
+                { id: 'appuntamenti', label: 'Appuntamenti' }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFiltroVista(f.id)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    filtroVista === f.id
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300 hover:text-amber-700'
+                  }`}
+                  data-testid={`calendario-filtro-${f.id}-btn`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -507,7 +572,7 @@ export default function CalendarioPage() {
             eventClick={handleEventClick}
             locale="it"
             height="auto"
-            events={eventiCalendario}
+            events={eventiCalendarioFiltrati}
             headerToolbar={{
               left: 'prev,next today',
               center: 'title',

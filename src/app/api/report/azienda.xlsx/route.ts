@@ -82,14 +82,14 @@ export async function GET(req: Request) {
     })
 
     // Intestazione azienda
-    sheet1.mergeCells('A1:J1')
+    sheet1.mergeCells('A1:K1')
     const titleCell = sheet1.getCell('A1')
     titleCell.value = 'VILLA PARIS – Report Aziendale'
     titleCell.font = { bold: true, size: 14, color: { argb: '1E3A5F' } }
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
     sheet1.getRow(1).height = 32
 
-    sheet1.mergeCells('A2:J2')
+    sheet1.mergeCells('A2:K2')
     const periodCell = sheet1.getCell('A2')
     periodCell.value = from || to
       ? `Periodo: ${from ? new Date(from).toLocaleDateString('it-IT') : '—'} → ${to ? new Date(to).toLocaleDateString('it-IT') : '—'}`
@@ -111,21 +111,27 @@ export async function GET(req: Request) {
       { key: 'luogo',      width: 14 },
       { key: 'fascia',     width: 12 },
       { key: 'persone',    width: 11 },
+      { key: 'prezzoPersona', width: 14 },
       { key: 'totale',     width: 16 },
     ]
 
     const hRow = sheet1.addRow([
       'Data Evento', 'Tipo Evento', 'Sposa / Festeggiato', 'Sposo',
       'Menu Pasto', 'Menu Buffet', 'Luogo', 'Pranzo/Cena',
-      'N. Persone', 'Prezzo Totale Evento'
+      'N. Persone', 'Prezzo/Persona', 'Prezzo Totale Evento'
     ])
-    applyHeader(hRow, 10)
+    applyHeader(hRow, 11)
 
     let totalPersone = 0
     let totalRicavo = 0
 
     eventi.forEach((ev, idx) => {
       const cp = ev.clienti[0]?.cliente
+      const struttura = typeof ev.struttura === 'string'
+        ? (() => {
+            try { return JSON.parse(ev.struttura || '{}') } catch { return {} }
+          })()
+        : (ev.struttura || {})
       const dataEvento = ev.dataConfermata
         ? (() => {
             const d = new Date(ev.dataConfermata!)
@@ -135,7 +141,8 @@ export async function GET(req: Request) {
           })()
         : 'Da definire'
       const persone  = ev.personePreviste || 0
-      const prezzo   = ev.prezzo || 0
+      const prezzoDaMenu = Number(struttura?.prezzo)
+      const prezzo = ev.prezzo ?? (Number.isFinite(prezzoDaMenu) ? prezzoDaMenu : 0)
       const totale   = persone * prezzo
       totalPersone  += persone
       totalRicavo   += totale
@@ -150,13 +157,15 @@ export async function GET(req: Request) {
         luogo:      ev.luogo || 'Villa Paris',
         fascia:     ev.fascia === 'pranzo' ? 'Pranzo' : ev.fascia === 'cena' ? 'Cena' : (ev.fascia || ''),
         persone,
+        prezzoPersona: prezzo,
         totale,
       })
 
+      row.getCell('prezzoPersona').numFmt = '€#,##0.00'
       row.getCell('totale').numFmt = '€#,##0.00'
       row.alignment = { vertical: 'middle', wrapText: true }
       row.height = 22
-      applyRowBorder(row, 10, idx % 2 === 0)
+      applyRowBorder(row, 11, idx % 2 === 0)
     })
 
     // Riga totali
@@ -166,7 +175,7 @@ export async function GET(req: Request) {
 
     const totRow = sheet1.addRow({
       data: '', tipo: '', sposa: 'TOTALE', sposo: '',
-      menuPasto: '', menuBuffet: '', luogo: '', fascia: '',
+      menuPasto: '', menuBuffet: '', luogo: '', fascia: '', prezzoPersona: '',
       persone: totalPersone,
       totale: totalRicavo,
     })

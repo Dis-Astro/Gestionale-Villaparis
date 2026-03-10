@@ -77,6 +77,22 @@ export default function VillaPiantina({
     onChange({ ...safeDisposizione, stazioni: nuoveStazioni, immagine: backgroundImage ?? undefined })
   }
 
+  const handleResizeTavolo = (id: number, nuovaDimensionePerc: number) => {
+    if (!onChange) return
+    const nuoviTavoli = safeDisposizione.tavoli.map(t =>
+      t.id === id ? { ...t, dimensionePerc: nuovaDimensionePerc } : t
+    )
+    onChange({ ...safeDisposizione, tavoli: nuoviTavoli, immagine: backgroundImage ?? undefined })
+  }
+
+  const handleResizeStazione = (id: number, dimensionePerc: { larghezzaPerc: number, altezzaPerc: number }) => {
+    if (!onChange) return
+    const nuoveStazioni = safeDisposizione.stazioni.map(s =>
+      s.id === id ? { ...s, dimensionePerc } : s
+    )
+    onChange({ ...safeDisposizione, stazioni: nuoveStazioni, immagine: backgroundImage ?? undefined })
+  }
+
   const handleDeleteTavolo = (id: number) => {
     if (!onChange) return
     const nuoviTavoli = safeDisposizione.tavoli.filter(t => t.id !== id)
@@ -203,6 +219,7 @@ export default function VillaPiantina({
             <button
               className="bg-white px-4 py-2 rounded shadow flex items-center gap-1 border"
               onClick={() => onStampa && onStampa()}
+              data-testid="piantina-stampa-btn"
             >
               <Printer size={16} />
               <span className="hidden md:inline">Stampa</span>
@@ -222,6 +239,7 @@ export default function VillaPiantina({
             <button
               className="bg-blue-500 text-white px-3 py-1 rounded flex items-center gap-1"
               onClick={() => fileInputRef.current?.click()}
+              data-testid="piantina-upload-bg-btn"
             >
               <Upload size={16} />
               <span className="hidden md:inline">Cambia planimetria</span>
@@ -236,12 +254,14 @@ export default function VillaPiantina({
             <button
               className="bg-blue-500 text-white px-3 py-1 rounded"
               onClick={aggiungiTavolo}
+              data-testid="piantina-aggiungi-tavolo-btn"
             >
               + Tavolo
             </button>
             <button
               className="bg-green-500 text-white px-3 py-1 rounded"
               onClick={aggiungiStazione}
+              data-testid="piantina-aggiungi-stazione-btn"
             >
               + Stazione
             </button>
@@ -283,6 +303,7 @@ export default function VillaPiantina({
               onRotate={rot => handleRotateTavolo(tavolo.id, rot)}
               onDelete={() => handleDeleteTavolo(tavolo.id)}
               onRename={nome => handleRenameTavolo(tavolo.id, nome)}
+              onResize={(dimensionePerc) => handleResizeTavolo(tavolo.id, dimensionePerc)}
               onOpenVarianti={() => setTavoloVariantiAperto(tavolo)}
               editabile={editabile}
               containerRef={stampaRef || containerRef}
@@ -300,6 +321,7 @@ export default function VillaPiantina({
               onRotate={rot => handleRotateStazione(stazione.id, rot)}
               onDelete={() => handleDeleteStazione(stazione.id)}
               onRename={nome => handleRenameStazione(stazione.id, nome)}
+              onResize={(dimensionePerc) => handleResizeStazione(stazione.id, dimensionePerc)}
               editabile={editabile}
               containerRef={stampaRef || containerRef}
             />

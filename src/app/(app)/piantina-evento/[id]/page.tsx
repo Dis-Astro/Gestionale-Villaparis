@@ -7,20 +7,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import VillaPiantina from '@/components/VillaPiantina'
 import VillaPiantinaDnDWrapper from '@/components/VillaPiantinaDnDWrapper'
 import { type VariantId, calcolaRiepilogoVarianti, VARIANTI_DEFAULT } from '@/lib/types'
+import BannerBlocco, { getOverrideHeaders } from '@/components/BannerBlocco'
 import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 import { 
   Layout, 
   Save, 
   ArrowLeft, 
   UtensilsCrossed,
   Info,
-  Printer
+  Printer,
+  Image,
+  FileText
 } from 'lucide-react'
 
 export default function GestionePiantinaPage() {
   const { id } = useParams()
   const router = useRouter()
   const [evento, setEvento] = useState<any>(null)
+  const [infoBlocco, setInfoBlocco] = useState<any>(null)
   const [disposizione, setDisposizione] = useState<{ tavoli: any[], stazioni: any[], immagine?: string }>({ tavoli: [], stazioni: [], immagine: undefined })
   const [variantiAttive, setVariantiAttive] = useState<VariantId[]>([])
   const [status, setStatus] = useState('')
@@ -41,16 +46,23 @@ export default function GestionePiantinaPage() {
         }
         const data = await res.json()
         setEvento(data)
+        if (data._blocco) setInfoBlocco(data._blocco)
         
         if (data.menu?.variantiAttive) {
           setVariantiAttive(data.menu.variantiAttive)
         }
+
+        const disposizioneRaw = typeof data.disposizioneSala === 'string'
+          ? (() => {
+              try { return JSON.parse(data.disposizioneSala || '{}') } catch { return {} }
+            })()
+          : data.disposizioneSala
         
-        if (data.disposizioneSala && typeof data.disposizioneSala === 'object') {
+        if (disposizioneRaw && typeof disposizioneRaw === 'object') {
           setDisposizione({
-            tavoli: Array.isArray(data.disposizioneSala.tavoli) ? data.disposizioneSala.tavoli : [],
-            stazioni: Array.isArray(data.disposizioneSala.stazioni) ? data.disposizioneSala.stazioni : [],
-            immagine: data.disposizioneSala.immagine ?? undefined
+            tavoli: Array.isArray(disposizioneRaw.tavoli) ? disposizioneRaw.tavoli : [],
+            stazioni: Array.isArray(disposizioneRaw.stazioni) ? disposizioneRaw.stazioni : [],
+            immagine: disposizioneRaw.immagine ?? undefined
           })
         } else {
           setDisposizione({ tavoli: [], stazioni: [], immagine: undefined })
@@ -66,16 +78,23 @@ export default function GestionePiantinaPage() {
     if (!evento) return
     setIsSaving(true)
     setStatus('Salvataggio in corso...')
+    const overrideHeaders = getOverrideHeaders()
     try {
       const res = await fetch(`/api/eventi?id=${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...overrideHeaders },
         body: JSON.stringify({
           ...evento,
           disposizioneSala: disposizione
         })
       })
-      setStatus(res.ok ? '✅ Salvato con successo' : '❌ Errore nel salvataggio')
+
+      if (res.status === 423) {
+        const body = await res.json()
+        setStatus(`🔒 ${body.message || 'Evento bloccato: serve override amministrativo.'}`)
+      } else {
+        setStatus(res.ok ? '✅ Salvato con successo' : '❌ Errore nel salvataggio')
+      }
       setTimeout(() => setStatus(''), 2000)
     } catch (error) {
       console.error('Errore nel salvataggio:', error)
@@ -85,17 +104,56 @@ export default function GestionePiantinaPage() {
     }
   }
 
+  const generateCanvas = async () => {
+    if (!stampaRef.current) return null
+    return html2canvas(stampaRef.current, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true
+    })
+  }
+
+  const handleExportPng = async () => {
+    const canvas = await generateCanvas()
+    if (!canvas) return
+    const imgData = canvas.toDataURL('image/png')
+    const a = document.createElement('a')
+    a.href = imgData
+    a.download = `planimetria-evento-${id}.png`
+    a.click()
+  }
+
+  const handleExportPdf = async () => {
+    const canvas = await generateCanvas()
+    if (!canvas) return
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    pdf.addImage(imgData, 'PNG', 8, 8, pageWidth - 16, pageHeight - 16, undefined, 'FAST')
+    pdf.save(`planimetria-evento-${id}.pdf`)
+  }
+
   const handleStampaPlanimetria = async () => {
-    if (!stampaRef.current) return
-    const canvas = await html2canvas(stampaRef.current)
+    const canvas = await generateCanvas()
+    if (!canvas) return
     const imgData = canvas.toDataURL('image/png')
     const printWindow = window.open('', '_blank')
     if (printWindow) {
-      printWindow.document.write('<img src="' + imgData + '" style="max-width:100%;"/>')
+      printWindow.document.write(`
+        <html>
+          <head><title>Planimetria Evento</title></head>
+          <body style="margin:0;display:flex;justify-content:center;align-items:center;background:#fff;">
+            <img src="${imgData}" style="max-width:100%;height:auto;"/>
+          </body>
+        </html>
+      `)
       printWindow.document.close()
       printWindow.focus()
-      printWindow.print()
-      printWindow.close()
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 300)
     }
   }
 
@@ -129,9 +187,22 @@ export default function GestionePiantinaPage() {
           <p className="text-gray-500">{evento.titolo}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportPng} data-testid="export-png-piantina-btn">
+            <Image className="w-4 h-4 mr-2" />
+            PNG
+          </Button>
+          <Button variant="outline" onClick={handleExportPdf} data-testid="export-pdf-piantina-btn">
+            <FileText className="w-4 h-4 mr-2" />
+            PDF
+          </Button>
+          <Button variant="outline" onClick={handleStampaPlanimetria} data-testid="print-piantina-btn">
+            <Printer className="w-4 h-4 mr-2" />
+            Stampa
+          </Button>
           <Button
             variant="outline"
             onClick={() => router.push(`/eventi/${id}/menu`)}
+            data-testid="piantina-open-menu-btn"
           >
             <UtensilsCrossed className="w-4 h-4 mr-2" />
             Menu
@@ -155,6 +226,13 @@ export default function GestionePiantinaPage() {
         }`} data-testid="status-message">
           {status}
         </div>
+      )}
+
+      {infoBlocco && (
+        <BannerBlocco
+          infoBlocco={infoBlocco}
+          onOverrideSuccess={() => setStatus('🔓 Override attivato. Ora puoi salvare la planimetria.')}
+        />
       )}
 
       {/* Riepilogo varianti */}

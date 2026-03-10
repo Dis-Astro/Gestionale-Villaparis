@@ -23,6 +23,7 @@ import {
   VARIANTI_DEFAULT,
   VARIANT_IDS
 } from '@/lib/types'
+import { buildMenuEventoFromStruttura, normalizeStrutturaMenuBase } from '@/lib/menu-utils'
 
 // ============================================
 // MENU EVENTO PAGE - STEP 2
@@ -48,11 +49,21 @@ export default function MenuEventoPage() {
         const res = await fetch(`/api/eventi?id=${id}`)
         if (!res.ok) throw new Error('Errore caricamento')
         const data = await res.json()
+
+        const menuRaw = typeof data.menu === 'string'
+          ? (() => {
+              try { return JSON.parse(data.menu || '{}') } catch { return {} }
+            })()
+          : (data.menu || {})
+
+        const strutturaRaw = normalizeStrutturaMenuBase(data.struttura)
         setEvento(data)
         
         // Carica menu esistente o inizializza vuoto
-        if (data.menu && data.menu.portate) {
-          setMenu(data.menu as MenuEvento)
+        if (menuRaw && Array.isArray(menuRaw.portate) && menuRaw.portate.length > 0) {
+          setMenu(menuRaw as MenuEvento)
+        } else if (strutturaRaw && Array.isArray(strutturaRaw.piatti) && strutturaRaw.piatti.length > 0) {
+          setMenu(buildMenuEventoFromStruttura(strutturaRaw))
         }
       } catch (error) {
         console.error('Errore:', error)
