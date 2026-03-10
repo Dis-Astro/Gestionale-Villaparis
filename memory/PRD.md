@@ -21,6 +21,12 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - tavoli e stazioni ridimensionabili (slider + maniglia drag)
   - salvataggio disposizione con supporto override blocco -10 giorni
   - export PNG, export PDF e stampa migliorata
+- Nuovo ciclo piantina (richieste utente 1B/2B/3C/4A):
+  - rotazione planimetria a step **90°** con persistenza (`rotazioneImmagine`)
+  - libreria planimetrie persistente (`GET/POST /api/piantine`) con riuso su eventi diversi
+  - copia schema da evento simile (suggerimenti automatici + scelta manuale)
+  - gestione posti tavolo direttamente nel controllo tavolo (nome + posti + dimensione)
+  - tavolo nuovo con dimensione iniziale **molto piccola** (`dimensionePerc=0.03`)
 - Report Excel aggiornato:
   - colonna `Prezzo/Persona` aggiunta
   - fallback automatico a `struttura.prezzo` se `evento.prezzo` non presente
@@ -29,6 +35,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
+- Testing Agent: `/app/test_reports/iteration_7.json` → nuove feature piantina PASS ✅
 
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
