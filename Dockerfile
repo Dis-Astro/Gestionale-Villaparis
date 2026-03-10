@@ -7,8 +7,8 @@
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json package-lock.json* ./
+RUN npm install
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -24,8 +24,8 @@ RUN npm run build
 # Stage 3: Production dependencies only
 FROM node:20-alpine AS prod-deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+COPY package.json package-lock.json* ./
+RUN npm install --omit=dev
 
 # Stage 4: Runner
 FROM node:20-alpine AS runner

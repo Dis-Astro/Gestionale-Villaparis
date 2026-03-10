@@ -72,7 +72,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Dis-Astro/villa-paris-ge
 | `DB_USER` | `villaparis` | Utente PostgreSQL |
 | `DB_PASS` | casuale | Password PostgreSQL |
 | `DB_NAME` | `villaparis` | Nome database |
-| `REPO_BRANCH` | `main` | Branch Git da clonare |
+| `REPO_BRANCH` | `OPUS` | Branch Git da clonare |
+
+> ⚠️ **Importante:** dopo qualunque modifica fatta in preview, usa sempre **Save to Github** prima di rilanciare lo script Proxmox. Il one-liner scarica il codice dal repository GitHub, non da questo ambiente locale.
 
 ## Setup Locale (Development)
 
