@@ -27,6 +27,11 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - copia schema da evento simile (suggerimenti automatici + scelta manuale)
   - gestione posti tavolo direttamente nel controllo tavolo (nome + posti + dimensione)
   - tavolo nuovo con dimensione iniziale **molto piccola** (`dimensionePerc=0.03`)
+- Nuovo ciclo UX planimetria (richiesta “immagine piccola/non lavorabile”):
+  - rimosso pulsante rotazione rapida dalla toolbar planimetria
+  - introdotto editor in upload con **ritaglio operativo**: zoom, rotazione libera, spostamento X/Y
+  - applicazione editor via canvas (output JPEG) per usare tutta l’area (`background-size: cover`)
+  - salvataggio in evento + salvataggio in libreria planimetrie mantenuti
 - Report Excel aggiornato:
   - colonna `Prezzo/Persona` aggiunta
   - fallback automatico a `struttura.prezzo` se `evento.prezzo` non presente
@@ -36,6 +41,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
 - Testing Agent: `/app/test_reports/iteration_7.json` → nuove feature piantina PASS ✅
+- Testing Agent: `/app/test_reports/iteration_8.json` → editor planimetria (upload+crop+rotate) PASS ✅
 
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
