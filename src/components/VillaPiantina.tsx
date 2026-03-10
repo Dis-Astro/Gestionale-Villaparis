@@ -40,8 +40,11 @@ export default function VillaPiantina({
   const [editorOffsetX, setEditorOffsetX] = useState(0)
   const [editorOffsetY, setEditorOffsetY] = useState(0)
   const [isApplyingEditor, setIsApplyingEditor] = useState(false)
+  const [isDraggingEditorImage, setIsDraggingEditorImage] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const editorPreviewRef = useRef<HTMLDivElement>(null)
+  const dragStateRef = useRef<{ startX: number; startY: number; startOffsetX: number; startOffsetY: number } | null>(null)
 
   useEffect(() => {
     setBackgroundImage(disposizione?.immagine || null)
@@ -167,6 +170,52 @@ export default function VillaPiantina({
     reader.readAsDataURL(file)
     e.target.value = ''
   }
+
+  const apriEditorSuImmagine = (src: string) => {
+    setEditorSource(src)
+    setEditorZoom(1)
+    setEditorRotation(0)
+    setEditorOffsetX(0)
+    setEditorOffsetY(0)
+    setShowEditor(true)
+  }
+
+  const handleStartEditorDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!editorPreviewRef.current) return
+    dragStateRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffsetX: editorOffsetX,
+      startOffsetY: editorOffsetY
+    }
+    setIsDraggingEditorImage(true)
+    ;(e.currentTarget as HTMLDivElement).setPointerCapture?.(e.pointerId)
+  }
+
+  useEffect(() => {
+    if (!isDraggingEditorImage) return
+
+    const onMove = (ev: PointerEvent) => {
+      if (!dragStateRef.current || !editorPreviewRef.current) return
+      const rect = editorPreviewRef.current.getBoundingClientRect()
+      const deltaXPerc = ((ev.clientX - dragStateRef.current.startX) / rect.width) * 100
+      const deltaYPerc = ((ev.clientY - dragStateRef.current.startY) / rect.height) * 100
+      setEditorOffsetX(Math.max(-120, Math.min(120, dragStateRef.current.startOffsetX + deltaXPerc)))
+      setEditorOffsetY(Math.max(-120, Math.min(120, dragStateRef.current.startOffsetY + deltaYPerc)))
+    }
+
+    const onUp = () => {
+      setIsDraggingEditorImage(false)
+      dragStateRef.current = null
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [isDraggingEditorImage])
 
   const renderEditedImage = async () => {
     if (!editorSource) return null
@@ -324,6 +373,15 @@ export default function VillaPiantina({
               accept="image/*"
               onChange={handleImageUpload}
             />
+            {backgroundImage && (
+              <button
+                className="bg-amber-500 text-white px-3 py-1 rounded"
+                onClick={() => apriEditorSuImmagine(backgroundImage)}
+                data-testid="piantina-apri-editor-btn"
+              >
+                Modifica in griglia
+              </button>
+            )}
             <button
               className="bg-blue-500 text-white px-3 py-1 rounded"
               onClick={aggiungiTavolo}
@@ -422,7 +480,17 @@ export default function VillaPiantina({
             </div>
 
             <div className="p-5 space-y-4">
-              <div className="aspect-[16/9] bg-gray-100 rounded-lg overflow-hidden border relative" data-testid="planimetria-editor-preview">
+              <p className="text-sm text-gray-600" data-testid="planimetria-editor-helper-text">
+                Trascina direttamente l'immagine nella griglia per decidere il taglio finale. Quello che vedi qui è quello che userai nella piantina.
+              </p>
+
+              <div
+                ref={editorPreviewRef}
+                className="aspect-[16/9] bg-gray-100 rounded-lg overflow-hidden border-2 border-amber-400 relative select-none"
+                data-testid="planimetria-editor-preview"
+                onPointerDown={handleStartEditorDrag}
+                style={{ cursor: isDraggingEditorImage ? 'grabbing' : 'grab' }}
+              >
                 <img
                   src={editorSource}
                   alt="Anteprima planimetria"
@@ -432,6 +500,19 @@ export default function VillaPiantina({
                     transformOrigin: 'center center'
                   }}
                 />
+
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    backgroundImage: `
+                      linear-gradient(to right, rgba(255,255,255,0.35) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(255,255,255,0.35) 1px, transparent 1px)
+                    `,
+                    backgroundSize: '40px 40px'
+                  }}
+                  data-testid="planimetria-editor-grid"
+                />
+                <div className="absolute inset-0 pointer-events-none border-4 border-white/80" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -465,8 +546,8 @@ export default function VillaPiantina({
                   <span className="text-gray-600">Sposta orizzontale</span>
                   <input
                     type="range"
-                    min={-60}
-                    max={60}
+                    min={-120}
+                    max={120}
                     step={1}
                     value={editorOffsetX}
                     onChange={(e) => setEditorOffsetX(Number(e.target.value))}
@@ -478,8 +559,8 @@ export default function VillaPiantina({
                   <span className="text-gray-600">Sposta verticale</span>
                   <input
                     type="range"
-                    min={-60}
-                    max={60}
+                    min={-120}
+                    max={120}
                     step={1}
                     value={editorOffsetY}
                     onChange={(e) => setEditorOffsetY(Number(e.target.value))}
