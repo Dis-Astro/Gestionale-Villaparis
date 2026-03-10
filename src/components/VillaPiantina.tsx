@@ -6,7 +6,7 @@ import Stazione from './Stazione'
 import PannelloVariantiTavolo from './PannelloVariantiTavolo'
 import { Tavolo as TavoloType, Stazione as StazioneType } from '../types/piantina'
 import { type VariantId, type VariantiTavolo } from '@/lib/types'
-import { Upload, Printer } from 'lucide-react'
+import { Upload, Printer, Crop } from 'lucide-react'
 
 export default function VillaPiantina({
   disposizione,
@@ -23,7 +23,7 @@ export default function VillaPiantina({
   onChange?: (nuovaDisposizione: { tavoli: TavoloType[], stazioni: StazioneType[], immagine?: string, rotazioneImmagine?: number }) => void
   editabile?: boolean
   planimetrie?: { nome: string, url: string }[]
-  onNuovaPlanimetria?: (file: File) => void
+  onNuovaPlanimetria?: (file: File) => void | Promise<void>
   onCambiaPlanimetria?: (url: string) => void
   onStampa?: () => void
   stampaRef?: React.RefObject<HTMLDivElement | null>
@@ -31,19 +31,24 @@ export default function VillaPiantina({
 }) {
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [backgroundImage, setBackgroundImage] = useState<string | null>(disposizione?.immagine || null)
-  const [rotazioneImmagine, setRotazioneImmagine] = useState<number>(disposizione?.rotazioneImmagine || 0)
   const [planimetriaSelezionata, setPlanimetriaSelezionata] = useState<string | null>(null)
   const [tavoloVariantiAperto, setTavoloVariantiAperto] = useState<TavoloType | null>(null)
+  const [showEditor, setShowEditor] = useState(false)
+  const [editorSource, setEditorSource] = useState<string | null>(null)
+  const [editorZoom, setEditorZoom] = useState(1)
+  const [editorRotation, setEditorRotation] = useState(0)
+  const [editorOffsetX, setEditorOffsetX] = useState(0)
+  const [editorOffsetY, setEditorOffsetY] = useState(0)
+  const [isApplyingEditor, setIsApplyingEditor] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setBackgroundImage(disposizione?.immagine || null)
-    setRotazioneImmagine(disposizione?.rotazioneImmagine || 0)
     if (typeof disposizione?.immagine === 'string' && disposizione.immagine.startsWith('/planimetrie/')) {
       setPlanimetriaSelezionata(disposizione.immagine)
     }
-  }, [disposizione?.immagine, disposizione?.rotazioneImmagine])
+  }, [disposizione?.immagine])
 
   const safeDisposizione = {
     tavoli: Array.isArray(disposizione?.tavoli) ? disposizione.tavoli : [],
@@ -57,7 +62,7 @@ export default function VillaPiantina({
     onChange({
       ...safeDisposizione,
       immagine: backgroundImage ?? undefined,
-      rotazioneImmagine,
+      rotazioneImmagine: 0,
       ...next
     })
   }
@@ -147,17 +152,87 @@ export default function VillaPiantina({
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const nuovaImmagine = event.target?.result as string
-        setBackgroundImage(nuovaImmagine)
-        emitChange({ immagine: nuovaImmagine })
-        if (onNuovaPlanimetria) {
-          onNuovaPlanimetria(file)
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const imgSrc = event.target?.result as string
+      setEditorSource(imgSrc)
+      setEditorZoom(1)
+      setEditorRotation(0)
+      setEditorOffsetX(0)
+      setEditorOffsetY(0)
+      setShowEditor(true)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const renderEditedImage = async () => {
+    if (!editorSource) return null
+
+    return new Promise<string>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = 1920
+        canvas.height = 1080
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('Canvas non disponibile'))
+          return
         }
+
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        const baseScale = Math.max(canvas.width / img.width, canvas.height / img.height)
+        const finalScale = baseScale * editorZoom
+        const offsetXPx = (editorOffsetX / 100) * canvas.width
+        const offsetYPx = (editorOffsetY / 100) * canvas.height
+
+        ctx.save()
+        ctx.translate(canvas.width / 2 + offsetXPx, canvas.height / 2 + offsetYPx)
+        ctx.rotate((editorRotation * Math.PI) / 180)
+        ctx.scale(finalScale, finalScale)
+        ctx.drawImage(img, -img.width / 2, -img.height / 2)
+        ctx.restore()
+
+        resolve(canvas.toDataURL('image/jpeg', 0.92))
       }
-      reader.readAsDataURL(file)
+      img.onerror = () => reject(new Error('Immagine non valida'))
+      img.src = editorSource
+    })
+  }
+
+  const dataUrlToFile = (dataUrl: string, filename: string) => {
+    const [meta, body] = dataUrl.split(',')
+    const mimeMatch = meta.match(/:(.*?);/)
+    const mime = mimeMatch?.[1] || 'image/jpeg'
+    const binary = atob(body)
+    const arr = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i)
+    return new File([arr], filename, { type: mime })
+  }
+
+  const handleApplyEditor = async () => {
+    if (!editorSource) return
+    setIsApplyingEditor(true)
+    try {
+      const finalImage = await renderEditedImage()
+      if (!finalImage) return
+
+      setBackgroundImage(finalImage)
+      emitChange({ immagine: finalImage, rotazioneImmagine: 0 })
+
+      if (onNuovaPlanimetria) {
+        const file = dataUrlToFile(finalImage, `planimetria-${Date.now()}.jpg`)
+        await Promise.resolve(onNuovaPlanimetria(file))
+      }
+
+      setShowEditor(false)
+    } finally {
+      setIsApplyingEditor(false)
     }
   }
 
@@ -168,12 +243,6 @@ export default function VillaPiantina({
       onCambiaPlanimetria(url)
     }
     emitChange({ immagine: url })
-  }
-
-  const ruotaPlanimetria90 = () => {
-    const nuovaRotazione = (rotazioneImmagine + 90) % 360
-    setRotazioneImmagine(nuovaRotazione)
-    emitChange({ rotazioneImmagine: nuovaRotazione })
   }
 
   // PATCH: posizione di default sempre visibile
@@ -248,13 +317,6 @@ export default function VillaPiantina({
               <Upload size={16} />
               <span className="hidden md:inline">Cambia planimetria</span>
             </button>
-            <button
-              className="bg-gray-700 text-white px-3 py-1 rounded"
-              onClick={ruotaPlanimetria90}
-              data-testid="piantina-ruota-90-btn"
-            >
-              ↻ Ruota 90°
-            </button>
             <input
               type="file"
               ref={fileInputRef}
@@ -291,12 +353,9 @@ export default function VillaPiantina({
             className="absolute inset-0 w-full h-full bg-gray-100"
             style={backgroundImage ? {
               backgroundImage: `url(${backgroundImage})`,
-              backgroundSize: 'contain',
+              backgroundSize: 'cover',
               backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              transform: `rotate(${rotazioneImmagine}deg)`,
-              transformOrigin: 'center center',
-              transition: 'transform 0.2s ease'
+              backgroundRepeat: 'no-repeat'
             } : {}}
           >
             {!backgroundImage && (
@@ -343,6 +402,116 @@ export default function VillaPiantina({
           ))}
         </div>
       </div>
+
+      {showEditor && editorSource && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" data-testid="planimetria-editor-overlay">
+          <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden" data-testid="planimetria-editor-modal">
+            <div className="px-5 py-3 border-b flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Crop className="w-4 h-4" />
+                Ritaglia e Ruota Planimetria
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditor(false)}
+                className="text-sm text-gray-500 hover:text-gray-700"
+                data-testid="planimetria-editor-close-btn"
+              >
+                Chiudi
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="aspect-[16/9] bg-gray-100 rounded-lg overflow-hidden border relative" data-testid="planimetria-editor-preview">
+                <img
+                  src={editorSource}
+                  alt="Anteprima planimetria"
+                  className="absolute left-1/2 top-1/2 w-full h-full object-cover"
+                  style={{
+                    transform: `translate(-50%, -50%) translate(${editorOffsetX}%, ${editorOffsetY}%) rotate(${editorRotation}deg) scale(${editorZoom})`,
+                    transformOrigin: 'center center'
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <label className="space-y-1">
+                  <span className="text-gray-600">Zoom</span>
+                  <input
+                    type="range"
+                    min={0.8}
+                    max={3}
+                    step={0.05}
+                    value={editorZoom}
+                    onChange={(e) => setEditorZoom(Number(e.target.value))}
+                    className="w-full"
+                    data-testid="planimetria-editor-zoom-slider"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-gray-600">Rotazione</span>
+                  <input
+                    type="range"
+                    min={-180}
+                    max={180}
+                    step={1}
+                    value={editorRotation}
+                    onChange={(e) => setEditorRotation(Number(e.target.value))}
+                    className="w-full"
+                    data-testid="planimetria-editor-rotation-slider"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-gray-600">Sposta orizzontale</span>
+                  <input
+                    type="range"
+                    min={-60}
+                    max={60}
+                    step={1}
+                    value={editorOffsetX}
+                    onChange={(e) => setEditorOffsetX(Number(e.target.value))}
+                    className="w-full"
+                    data-testid="planimetria-editor-offsetx-slider"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-gray-600">Sposta verticale</span>
+                  <input
+                    type="range"
+                    min={-60}
+                    max={60}
+                    step={1}
+                    value={editorOffsetY}
+                    onChange={(e) => setEditorOffsetY(Number(e.target.value))}
+                    className="w-full"
+                    data-testid="planimetria-editor-offsety-slider"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditor(false)}
+                  className="px-3 py-2 rounded border text-sm"
+                  data-testid="planimetria-editor-cancel-btn"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyEditor}
+                  disabled={isApplyingEditor}
+                  className="px-3 py-2 rounded bg-amber-500 text-white text-sm disabled:opacity-60"
+                  data-testid="planimetria-editor-apply-btn"
+                >
+                  {isApplyingEditor ? 'Applicazione...' : 'Applica e usa questa planimetria'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pannello Varianti Tavolo */}
       {tavoloVariantiAperto && (
