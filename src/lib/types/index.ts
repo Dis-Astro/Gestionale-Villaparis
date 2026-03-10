@@ -238,6 +238,7 @@ export interface DisposizioneSala {
   tavoli: TavoloEvento[]
   stazioni?: StazioneEvento[]             // Opzionale
   immagine?: string                       // Base64 o URL della planimetria
+  rotazioneImmagine?: number
 }
 
 // ============================================

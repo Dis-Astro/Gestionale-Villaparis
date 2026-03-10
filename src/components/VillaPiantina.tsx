@@ -19,8 +19,8 @@ export default function VillaPiantina({
   stampaRef,
   variantiAttive = []
 }: {
-  disposizione: { tavoli: TavoloType[], stazioni: StazioneType[], immagine?: string }
-  onChange?: (nuovaDisposizione: { tavoli: TavoloType[], stazioni: StazioneType[], immagine?: string }) => void
+  disposizione: { tavoli: TavoloType[], stazioni: StazioneType[], immagine?: string, rotazioneImmagine?: number }
+  onChange?: (nuovaDisposizione: { tavoli: TavoloType[], stazioni: StazioneType[], immagine?: string, rotazioneImmagine?: number }) => void
   editabile?: boolean
   planimetrie?: { nome: string, url: string }[]
   onNuovaPlanimetria?: (file: File) => void
@@ -31,6 +31,7 @@ export default function VillaPiantina({
 }) {
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [backgroundImage, setBackgroundImage] = useState<string | null>(disposizione?.immagine || null)
+  const [rotazioneImmagine, setRotazioneImmagine] = useState<number>(disposizione?.rotazioneImmagine || 0)
   const [planimetriaSelezionata, setPlanimetriaSelezionata] = useState<string | null>(null)
   const [tavoloVariantiAperto, setTavoloVariantiAperto] = useState<TavoloType | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -38,98 +39,110 @@ export default function VillaPiantina({
 
   useEffect(() => {
     setBackgroundImage(disposizione?.immagine || null)
-  }, [disposizione?.immagine])
+    setRotazioneImmagine(disposizione?.rotazioneImmagine || 0)
+    if (typeof disposizione?.immagine === 'string' && disposizione.immagine.startsWith('/planimetrie/')) {
+      setPlanimetriaSelezionata(disposizione.immagine)
+    }
+  }, [disposizione?.immagine, disposizione?.rotazioneImmagine])
 
   const safeDisposizione = {
     tavoli: Array.isArray(disposizione?.tavoli) ? disposizione.tavoli : [],
     stazioni: Array.isArray(disposizione?.stazioni) ? disposizione.stazioni : [],
-    immagine: disposizione?.immagine || undefined
+    immagine: disposizione?.immagine || undefined,
+    rotazioneImmagine: disposizione?.rotazioneImmagine || 0
+  }
+
+  const emitChange = (next: Partial<{ tavoli: TavoloType[]; stazioni: StazioneType[]; immagine?: string; rotazioneImmagine?: number }>) => {
+    if (!onChange) return
+    onChange({
+      ...safeDisposizione,
+      immagine: backgroundImage ?? undefined,
+      rotazioneImmagine,
+      ...next
+    })
   }
 
   const handleDragEnd = (tipo: 'tavolo' | 'stazione', id: number, nuovaPosPerc: { x: number, y: number }) => {
-    if (!onChange) return
     if (tipo === 'tavolo') {
       const nuoviTavoli = safeDisposizione.tavoli.map(t =>
         t.id === id ? { ...t, posizione: { xPerc: nuovaPosPerc.x, yPerc: nuovaPosPerc.y } } : t
       )
-      onChange({ ...safeDisposizione, tavoli: nuoviTavoli, immagine: backgroundImage ?? undefined })
+      emitChange({ tavoli: nuoviTavoli })
     } else {
       const nuoveStazioni = safeDisposizione.stazioni.map(s =>
         s.id === id ? { ...s, posizione: { xPerc: nuovaPosPerc.x, yPerc: nuovaPosPerc.y } } : s
       )
-      onChange({ ...safeDisposizione, stazioni: nuoveStazioni, immagine: backgroundImage ?? undefined })
+      emitChange({ stazioni: nuoveStazioni })
     }
   }
 
   const handleRotateTavolo = (id: number, nuovaRotazione: number) => {
-    if (!onChange) return
     const nuoviTavoli = safeDisposizione.tavoli.map(t =>
       t.id === id ? { ...t, rotazione: nuovaRotazione } : t
     )
-    onChange({ ...safeDisposizione, tavoli: nuoviTavoli, immagine: backgroundImage ?? undefined })
+    emitChange({ tavoli: nuoviTavoli })
   }
 
   const handleRotateStazione = (id: number, nuovaRotazione: number) => {
-    if (!onChange) return
     const nuoveStazioni = safeDisposizione.stazioni.map(s =>
       s.id === id ? { ...s, rotazione: nuovaRotazione } : s
     )
-    onChange({ ...safeDisposizione, stazioni: nuoveStazioni, immagine: backgroundImage ?? undefined })
+    emitChange({ stazioni: nuoveStazioni })
   }
 
   const handleResizeTavolo = (id: number, nuovaDimensionePerc: number) => {
-    if (!onChange) return
     const nuoviTavoli = safeDisposizione.tavoli.map(t =>
       t.id === id ? { ...t, dimensionePerc: nuovaDimensionePerc } : t
     )
-    onChange({ ...safeDisposizione, tavoli: nuoviTavoli, immagine: backgroundImage ?? undefined })
+    emitChange({ tavoli: nuoviTavoli })
+  }
+
+  const handleUpdatePostiTavolo = (id: number, posti: number) => {
+    const nuoviTavoli = safeDisposizione.tavoli.map(t =>
+      t.id === id ? { ...t, posti } : t
+    )
+    emitChange({ tavoli: nuoviTavoli })
   }
 
   const handleResizeStazione = (id: number, dimensionePerc: { larghezzaPerc: number, altezzaPerc: number }) => {
-    if (!onChange) return
     const nuoveStazioni = safeDisposizione.stazioni.map(s =>
       s.id === id ? { ...s, dimensionePerc } : s
     )
-    onChange({ ...safeDisposizione, stazioni: nuoveStazioni, immagine: backgroundImage ?? undefined })
+    emitChange({ stazioni: nuoveStazioni })
   }
 
   const handleDeleteTavolo = (id: number) => {
-    if (!onChange) return
     const nuoviTavoli = safeDisposizione.tavoli.filter(t => t.id !== id)
-    onChange({ ...safeDisposizione, tavoli: nuoviTavoli, immagine: backgroundImage ?? undefined })
+    emitChange({ tavoli: nuoviTavoli })
     setSelectedItem(null)
   }
 
   const handleDeleteStazione = (id: number) => {
-    if (!onChange) return
     const nuoveStazioni = safeDisposizione.stazioni.filter(s => s.id !== id)
-    onChange({ ...safeDisposizione, stazioni: nuoveStazioni, immagine: backgroundImage ?? undefined })
+    emitChange({ stazioni: nuoveStazioni })
     setSelectedItem(null)
   }
 
   const handleRenameTavolo = (id: number, nuovoNome: string) => {
-    if (!onChange) return
     const nuoviTavoli = safeDisposizione.tavoli.map(t =>
       t.id === id ? { ...t, numero: nuovoNome } : t
     )
-    onChange({ ...safeDisposizione, tavoli: nuoviTavoli, immagine: backgroundImage ?? undefined })
+    emitChange({ tavoli: nuoviTavoli })
   }
 
   const handleRenameStazione = (id: number, nuovoNome: string) => {
-    if (!onChange) return
     const nuoveStazioni = safeDisposizione.stazioni.map(s =>
       s.id === id ? { ...s, nome: nuovoNome } : s
     )
-    onChange({ ...safeDisposizione, stazioni: nuoveStazioni, immagine: backgroundImage ?? undefined })
+    emitChange({ stazioni: nuoveStazioni })
   }
 
   // Handler per salvare varianti tavolo
   const handleSaveVariantiTavolo = (tavoloId: number, varianti: VariantiTavolo) => {
-    if (!onChange) return
     const nuoviTavoli = safeDisposizione.tavoli.map(t =>
       t.id === tavoloId ? { ...t, varianti } : t
     )
-    onChange({ ...safeDisposizione, tavoli: nuoviTavoli, immagine: backgroundImage ?? undefined })
+    emitChange({ tavoli: nuoviTavoli })
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,13 +150,9 @@ export default function VillaPiantina({
     if (file) {
       const reader = new FileReader()
       reader.onload = (event) => {
-        setBackgroundImage(event.target?.result as string)
-        if (onChange) {
-          onChange({
-            ...safeDisposizione,
-            immagine: event.target?.result as string
-          })
-        }
+        const nuovaImmagine = event.target?.result as string
+        setBackgroundImage(nuovaImmagine)
+        emitChange({ immagine: nuovaImmagine })
         if (onNuovaPlanimetria) {
           onNuovaPlanimetria(file)
         }
@@ -158,20 +167,19 @@ export default function VillaPiantina({
     if (onCambiaPlanimetria) {
       onCambiaPlanimetria(url)
     }
-    if (onChange) {
-      onChange({
-        ...safeDisposizione,
-        immagine: url
-      })
-    }
+    emitChange({ immagine: url })
+  }
+
+  const ruotaPlanimetria90 = () => {
+    const nuovaRotazione = (rotazioneImmagine + 90) % 360
+    setRotazioneImmagine(nuovaRotazione)
+    emitChange({ rotazioneImmagine: nuovaRotazione })
   }
 
   // PATCH: posizione di default sempre visibile
   const aggiungiTavolo = () => {
-    if (!onChange) return
     const nuovoId = Math.max(0, ...safeDisposizione.tavoli.map(t => t.id || 0)) + 1
-    onChange({
-      ...safeDisposizione,
+    emitChange({
       tavoli: [
         ...safeDisposizione.tavoli,
         {
@@ -181,18 +189,15 @@ export default function VillaPiantina({
           posizione: { xPerc: 0.12, yPerc: 0.12 }, // PATCH: fisso e visibile!
           rotazione: 0,
           forma: 'rotondo',
-          dimensionePerc: 0.06
+          dimensionePerc: 0.03
         }
-      ],
-      immagine: backgroundImage ?? undefined
+      ]
     })
   }
 
   const aggiungiStazione = () => {
-    if (!onChange) return
     const nuovoId = Math.max(0, ...safeDisposizione.stazioni.map(s => s.id || 0)) + 1
-    onChange({
-      ...safeDisposizione,
+    emitChange({
       stazioni: [
         ...safeDisposizione.stazioni,
         {
@@ -203,8 +208,7 @@ export default function VillaPiantina({
           rotazione: 0,
           dimensionePerc: { larghezzaPerc: 0.15, altezzaPerc: 0.06 }
         }
-      ],
-      immagine: backgroundImage ?? undefined
+      ]
     })
   }
 
@@ -244,6 +248,13 @@ export default function VillaPiantina({
               <Upload size={16} />
               <span className="hidden md:inline">Cambia planimetria</span>
             </button>
+            <button
+              className="bg-gray-700 text-white px-3 py-1 rounded"
+              onClick={ruotaPlanimetria90}
+              data-testid="piantina-ruota-90-btn"
+            >
+              ↻ Ruota 90°
+            </button>
             <input
               type="file"
               ref={fileInputRef}
@@ -282,7 +293,10 @@ export default function VillaPiantina({
               backgroundImage: `url(${backgroundImage})`,
               backgroundSize: 'contain',
               backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat'
+              backgroundRepeat: 'no-repeat',
+              transform: `rotate(${rotazioneImmagine}deg)`,
+              transformOrigin: 'center center',
+              transition: 'transform 0.2s ease'
             } : {}}
           >
             {!backgroundImage && (
@@ -303,6 +317,7 @@ export default function VillaPiantina({
               onRotate={rot => handleRotateTavolo(tavolo.id, rot)}
               onDelete={() => handleDeleteTavolo(tavolo.id)}
               onRename={nome => handleRenameTavolo(tavolo.id, nome)}
+              onUpdatePosti={(posti) => handleUpdatePostiTavolo(tavolo.id, posti)}
               onResize={(dimensionePerc) => handleResizeTavolo(tavolo.id, dimensionePerc)}
               onOpenVarianti={() => setTavoloVariantiAperto(tavolo)}
               editabile={editabile}

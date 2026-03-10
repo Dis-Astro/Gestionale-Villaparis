@@ -23,10 +23,14 @@ import {
 
 export default function GestionePiantinaPage() {
   const { id } = useParams()
+  const eventoId = Number(id)
   const router = useRouter()
   const [evento, setEvento] = useState<any>(null)
   const [infoBlocco, setInfoBlocco] = useState<any>(null)
-  const [disposizione, setDisposizione] = useState<{ tavoli: any[], stazioni: any[], immagine?: string }>({ tavoli: [], stazioni: [], immagine: undefined })
+  const [disposizione, setDisposizione] = useState<{ tavoli: any[], stazioni: any[], immagine?: string, rotazioneImmagine?: number }>({ tavoli: [], stazioni: [], immagine: undefined, rotazioneImmagine: 0 })
+  const [planimetrie, setPlanimetrie] = useState<{ nome: string; url: string }[]>([])
+  const [eventiSimili, setEventiSimili] = useState<any[]>([])
+  const [schemaDaCopiareId, setSchemaDaCopiareId] = useState('')
   const [variantiAttive, setVariantiAttive] = useState<VariantId[]>([])
   const [status, setStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -34,6 +38,31 @@ export default function GestionePiantinaPage() {
 
   const aggiornaDisposizione = useCallback((nuova: any) => {
     setDisposizione(JSON.parse(JSON.stringify(nuova)))
+  }, [])
+
+  const parseDisposizione = (raw: any) => {
+    const parsed = typeof raw === 'string'
+      ? (() => {
+          try { return JSON.parse(raw || '{}') } catch { return {} }
+        })()
+      : raw
+
+    return {
+      tavoli: Array.isArray(parsed?.tavoli) ? parsed.tavoli : [],
+      stazioni: Array.isArray(parsed?.stazioni) ? parsed.stazioni : [],
+      immagine: parsed?.immagine ?? undefined,
+      rotazioneImmagine: parsed?.rotazioneImmagine || 0
+    }
+  }
+
+  const fetchPlanimetrie = useCallback(async () => {
+    try {
+      const res = await fetch('/api/piantine')
+      const data = await res.json()
+      setPlanimetrie(Array.isArray(data) ? data : [])
+    } catch {
+      setPlanimetrie([])
+    }
   }, [])
 
   useEffect(() => {
@@ -52,27 +81,70 @@ export default function GestionePiantinaPage() {
           setVariantiAttive(data.menu.variantiAttive)
         }
 
-        const disposizioneRaw = typeof data.disposizioneSala === 'string'
-          ? (() => {
-              try { return JSON.parse(data.disposizioneSala || '{}') } catch { return {} }
-            })()
-          : data.disposizioneSala
-        
-        if (disposizioneRaw && typeof disposizioneRaw === 'object') {
-          setDisposizione({
-            tavoli: Array.isArray(disposizioneRaw.tavoli) ? disposizioneRaw.tavoli : [],
-            stazioni: Array.isArray(disposizioneRaw.stazioni) ? disposizioneRaw.stazioni : [],
-            immagine: disposizioneRaw.immagine ?? undefined
-          })
-        } else {
-          setDisposizione({ tavoli: [], stazioni: [], immagine: undefined })
-        }
+        setDisposizione(parseDisposizione(data.disposizioneSala))
       } catch (error) {
         console.error('Errore nel caricamento evento:', error)
       }
     }
     fetchEvento()
-  }, [id])
+    fetchPlanimetrie()
+  }, [id, fetchPlanimetrie])
+
+  useEffect(() => {
+    const fetchEventiSimili = async () => {
+      if (!evento?.tipo) return
+      try {
+        const res = await fetch('/api/eventi')
+        const data = await res.json()
+        if (!Array.isArray(data)) return
+
+        const candidati = data
+          .filter((ev: any) => Number(ev.id) !== eventoId)
+          .map((ev: any) => ({ ...ev, _disposizioneParsed: parseDisposizione(ev.disposizioneSala) }))
+          .filter((ev: any) => ev._disposizioneParsed.tavoli.length > 0)
+          .sort((a: any, b: any) => {
+            const aScore = Math.abs((a.personePreviste || 0) - (evento.personePreviste || 0))
+            const bScore = Math.abs((b.personePreviste || 0) - (evento.personePreviste || 0))
+            const sameTypeA = a.tipo === evento.tipo ? -1000 : 0
+            const sameTypeB = b.tipo === evento.tipo ? -1000 : 0
+            return (aScore + sameTypeA) - (bScore + sameTypeB)
+          })
+          .slice(0, 15)
+
+        setEventiSimili(candidati)
+      } catch {
+        setEventiSimili([])
+      }
+    }
+    fetchEventiSimili()
+  }, [evento?.tipo, evento?.personePreviste, eventoId])
+
+  const handleUploadPlanimetriaGlobale = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('nome', file.name)
+
+    const res = await fetch('/api/piantine', {
+      method: 'POST',
+      body: formData
+    })
+
+    if (res.ok) {
+      await fetchPlanimetrie()
+      setStatus('✅ Planimetria salvata in libreria')
+      setTimeout(() => setStatus(''), 2000)
+    } else {
+      setStatus('❌ Errore salvataggio planimetria in libreria')
+    }
+  }
+
+  const handleCopiaSchema = () => {
+    const selected = eventiSimili.find((e) => String(e.id) === schemaDaCopiareId)
+    if (!selected) return
+    setDisposizione(parseDisposizione(selected.disposizioneSala))
+    setStatus(`✅ Schema copiato da evento #${selected.id}`)
+    setTimeout(() => setStatus(''), 2000)
+  }
 
   const handleSave = async () => {
     if (!evento) return
@@ -222,7 +294,7 @@ export default function GestionePiantinaPage() {
       {/* Status */}
       {status && (
         <div className={`px-4 py-2 rounded-lg text-sm ${
-          status.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          status.includes('✅') ? 'bg-green-50 text-green-700' : status.includes('🔒') ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
         }`} data-testid="status-message">
           {status}
         </div>
@@ -267,8 +339,37 @@ export default function GestionePiantinaPage() {
         <CardContent className="p-4 flex items-center gap-3">
           <Info className="w-5 h-5 text-gray-500" />
           <p className="text-sm text-gray-600">
-            <strong>Tip:</strong> Seleziona un tavolo e clicca 🍽️ oppure fai <strong>doppio click</strong> per gestire le varianti alimentari
+            <strong>Tip:</strong> Seleziona un tavolo per rinominarlo, impostare i posti (es. Giglio 5, Orchidea 7) e ridimensionarlo.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="copia-schema-card">
+        <CardHeader>
+          <CardTitle className="text-base">Copia schema da evento simile</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+          <select
+            className="w-full md:max-w-lg border rounded-lg px-3 py-2 text-sm"
+            value={schemaDaCopiareId}
+            onChange={(e) => setSchemaDaCopiareId(e.target.value)}
+            data-testid="copia-schema-select"
+          >
+            <option value="">-- Seleziona evento di riferimento --</option>
+            {eventiSimili.map((ev) => (
+              <option key={ev.id} value={String(ev.id)}>
+                #{ev.id} · {ev.titolo} · {ev.tipo} · {ev.personePreviste || 0} invitati
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="outline"
+            onClick={handleCopiaSchema}
+            disabled={!schemaDaCopiareId}
+            data-testid="copia-schema-btn"
+          >
+            Copia schema
+          </Button>
         </CardContent>
       </Card>
 
@@ -282,6 +383,9 @@ export default function GestionePiantinaPage() {
               editabile={true}
               stampaRef={stampaRef}
               onStampa={handleStampaPlanimetria}
+              planimetrie={planimetrie}
+              onNuovaPlanimetria={handleUploadPlanimetriaGlobale}
+              onCambiaPlanimetria={(url) => setDisposizione((prev) => ({ ...prev, immagine: url }))}
               variantiAttive={variantiAttive}
             />
           </VillaPiantinaDnDWrapper>

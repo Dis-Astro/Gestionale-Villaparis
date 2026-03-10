@@ -23,6 +23,7 @@ type TavoloProps = {
   onRotate: (rot: number) => void
   onDelete: () => void
   onRename: (nome: string) => void
+  onUpdatePosti: (posti: number) => void
   onResize: (dimensionePerc: number) => void
   onOpenVarianti?: () => void  // Nuovo callback per aprire pannello varianti
   editabile: boolean
@@ -37,6 +38,7 @@ export default function Tavolo({
   onRotate,
   onDelete,
   onRename,
+  onUpdatePosti,
   onResize,
   onOpenVarianti,
   editabile,
@@ -111,7 +113,7 @@ export default function Tavolo({
     }
   }
 
-  const clampDimension = (value: number) => Math.max(0.04, Math.min(0.22, value))
+  const clampDimension = (value: number) => Math.max(0.025, Math.min(0.18, value))
 
   const handleResizePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -165,6 +167,9 @@ export default function Tavolo({
       {/* Nome tavolo */}
       <span style={{ fontSize: diametro * 0.25, fontWeight: 'bold' }}>
         {tavolo.numero}
+      </span>
+      <span style={{ fontSize: Math.max(diametro * 0.14, 8), color: '#4b5563' }}>
+        {tavolo.posti}p
       </span>
       
       {/* Badge varianti */}
@@ -259,9 +264,19 @@ export default function Tavolo({
             data-testid={`rename-tavolo-${tavolo.id}`}
           />
           <input
+            type="number"
+            min={1}
+            max={20}
+            value={tavolo.posti || 1}
+            onChange={(e) => onUpdatePosti(Math.max(1, Number(e.target.value) || 1))}
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 48, border: '1px solid #ccc', borderRadius: 4, padding: '2px 4px' }}
+            data-testid={`posti-tavolo-${tavolo.id}`}
+          />
+          <input
             type="range"
-            min={0.04}
-            max={0.22}
+            min={0.025}
+            max={0.18}
             step={0.005}
             value={tavolo.dimensionePerc ?? 0.1}
             onChange={(e) => onResize(clampDimension(parseFloat(e.target.value)))}

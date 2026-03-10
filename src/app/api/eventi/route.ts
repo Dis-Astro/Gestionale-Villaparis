@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         stato: body.stato ?? 'in_attesa',
         menu: toJson(body.menu || {}),
         struttura: toJson(body.struttura || {}),
-        disposizioneSala: body.disposizioneSala || null,
+        disposizioneSala: toJson(body.disposizioneSala),
         luogo: body.luogo || null,
         prezzo: body.prezzo ? parseFloat(body.prezzo) : null,
         menuPasto: body.menuPasto || null,

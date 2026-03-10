@@ -35,3 +35,10 @@ export type Stazione = {
   }
   [key: string]: any
 }
+
+export type DisposizioneSala = {
+  tavoli: Tavolo[]
+  stazioni: Stazione[]
+  immagine?: string
+  rotazioneImmagine?: number
+}
