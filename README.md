@@ -36,7 +36,7 @@ docker compose up -d
 Esegui questo comando come **root** direttamente sul nodo Proxmox:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Dis-Astro/villa-paris-gestionale/main/proxmox/install-ct.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Dis-Astro/villa-paris-gestionale/OPUS/proxmox/install-ct.sh)"
 ```
 
 Lo script in automatico:
@@ -56,7 +56,7 @@ CT_DISK=20 \
 CT_IP=192.168.1.50/24 \
 CT_GATEWAY=192.168.1.1 \
 DB_PASS=mia_password_sicura \
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Dis-Astro/villa-paris-gestionale/main/proxmox/install-ct.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Dis-Astro/villa-paris-gestionale/OPUS/proxmox/install-ct.sh)"
 ```
 
 | Variabile | Default | Descrizione |
