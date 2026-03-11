@@ -149,6 +149,10 @@ export interface Piatto {
   id: string                    // ID univoco
   nome: string                  // Nome del piatto
   descrizione?: string          // Descrizione opzionale
+  categoria?: string            // Categoria di appartenenza (antipasto, primo...)
+  selezionato?: boolean         // Se selezionato per questo evento
+  defaultSelected?: boolean     // Se pre-selezionato nel menu base
+  isExtra?: boolean             // Se piatto aggiunto manualmente in evento
   variantiDisponibili?: VariantId[] // Array di VariantId disponibili per questo piatto
 }
 

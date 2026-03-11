@@ -42,13 +42,27 @@ export async function GET(req: Request) {
       ticketMedio: 0
     }))
 
+    const getPrezzoEvento = (evento: any): number => {
+      const prezzoEvento = Number(evento.prezzo)
+      if (Number.isFinite(prezzoEvento) && prezzoEvento > 0) return prezzoEvento
+
+      const struttura = typeof evento.struttura === 'string'
+        ? (() => {
+            try { return JSON.parse(evento.struttura || '{}') } catch { return {} }
+          })()
+        : (evento.struttura || {})
+
+      const prezzoDaStruttura = Number(struttura?.prezzo)
+      return Number.isFinite(prezzoDaStruttura) && prezzoDaStruttura > 0 ? prezzoDaStruttura : 0
+    }
+
     // Aggregate data by month
     eventi.forEach(evento => {
       if (!evento.dataConfermata) return
       
       const month = new Date(evento.dataConfermata).getMonth()
       const persone = evento.personePreviste || 0
-      const prezzo = evento.prezzo || 80
+      const prezzo = getPrezzoEvento(evento)
       const ricavo = persone * prezzo
 
       monthlyData[month].eventi++
@@ -69,14 +83,14 @@ export async function GET(req: Request) {
         tipoData[tipo] = { tipo, count: 0, ricavi: 0 }
       }
       tipoData[tipo].count++
-      tipoData[tipo].ricavi += (evento.personePreviste || 0) * (evento.prezzo || 80)
+      tipoData[tipo].ricavi += (evento.personePreviste || 0) * getPrezzoEvento(evento)
     })
 
     // Totals
     const totals = {
       eventiTotali: eventi.length,
       ospitiTotali: eventi.reduce((sum, e) => sum + (e.personePreviste || 0), 0),
-      ricaviTotali: eventi.reduce((sum, e) => sum + (e.personePreviste || 0) * (e.prezzo || 80), 0),
+      ricaviTotali: eventi.reduce((sum, e) => sum + (e.personePreviste || 0) * getPrezzoEvento(e), 0),
       ticketMedio: 0
     }
     totals.ticketMedio = totals.ospitiTotali > 0 

@@ -45,6 +45,13 @@ const vuotoCliente = (): Omit<Cliente, 'id' | 'eventi'> => ({
   notaAnagrafica: ''
 })
 
+const toDateInputValue = (value?: string) => {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
+}
+
 function ClienteForm({
   cliente, onSave, onClose
 }: {
@@ -54,7 +61,14 @@ function ClienteForm({
 }) {
   const isNew = !cliente?.id
   const [form, setForm] = useState<Omit<Cliente, 'id' | 'eventi'>>(
-    cliente ? { ...vuotoCliente(), ...cliente } : vuotoCliente()
+    cliente
+      ? {
+          ...vuotoCliente(),
+          ...cliente,
+          dataNascita: toDateInputValue(cliente.dataNascita),
+          dataPrimoContatto: toDateInputValue(cliente.dataPrimoContatto)
+        }
+      : vuotoCliente()
   )
   const [saving, setSaving] = useState(false)
   const [errore, setErrore] = useState('')

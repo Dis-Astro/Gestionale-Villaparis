@@ -530,7 +530,7 @@ export default function ModificaEventoPage() {
                       setEvento((prev: any) => ({
                         ...prev,
                         menuPasto,
-                        prezzo: prev?.prezzo || prezzo || ''
+                        prezzo: prezzo ?? prev?.prezzo ?? ''
                       }))
                     }}
                   />

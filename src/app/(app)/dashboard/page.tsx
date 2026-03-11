@@ -70,7 +70,12 @@ export default function DashboardPage() {
 
         // Calculate revenue (using personePreviste * default price estimate)
         const ricaviMese = eventiMese.reduce((sum: number, e: any) => {
-          const prezzo = e.struttura?.prezzo || 80 // Default €80/persona
+          const struttura = typeof e.struttura === 'string'
+            ? (() => {
+                try { return JSON.parse(e.struttura || '{}') } catch { return {} }
+              })()
+            : (e.struttura || {})
+          const prezzo = Number(e.prezzo) || Number(struttura?.prezzo) || 0
           return sum + (e.personePreviste || 0) * prezzo
         }, 0)
 

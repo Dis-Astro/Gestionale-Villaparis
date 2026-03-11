@@ -4,6 +4,21 @@ import prisma from '@/lib/prisma'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const isSqlite = (process.env.DATABASE_URL || '').startsWith('file:')
+
+function parseStruttura(raw: any) {
+  if (!raw) return {}
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) } catch { return {} }
+  }
+  return raw
+}
+
+function serializeStruttura(raw: any) {
+  const normalized = parseStruttura(raw)
+  return isSqlite ? JSON.stringify(normalized) : normalized
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -16,13 +31,21 @@ export async function GET(req: NextRequest) {
       if (!menu) {
         return NextResponse.json({ error: 'Menù non trovato' }, { status: 404 })
       }
-      return NextResponse.json(menu)
+      return NextResponse.json({
+        ...menu,
+        struttura: parseStruttura(menu.struttura)
+      })
     }
 
     const lista = await prisma.menuBase.findMany({
       orderBy: { createdAt: 'desc' }
     })
-    return NextResponse.json(lista)
+    return NextResponse.json(
+      lista.map((m) => ({
+        ...m,
+        struttura: parseStruttura(m.struttura)
+      }))
+    )
   } catch (err) {
     console.error('Errore GET menu base:', err)
     return NextResponse.json({ error: 'Errore recupero menù' }, { status: 500 })
@@ -35,10 +58,10 @@ export async function POST(req: NextRequest) {
     const nuovo = await prisma.menuBase.create({
       data: {
         nome: body.nome,
-        struttura: body.struttura
+        struttura: serializeStruttura(body.struttura)
       }
     })
-    return NextResponse.json(nuovo)
+    return NextResponse.json({ ...nuovo, struttura: parseStruttura(nuovo.struttura) })
   } catch (err) {
     console.error('Errore POST menu base:', err)
     return NextResponse.json({ error: 'Errore salvataggio menù' }, { status: 500 })
@@ -69,11 +92,11 @@ export async function PUT(req: Request) {
       where: { id },
       data: {
         nome: body.nome,
-        struttura: body.struttura
+        struttura: serializeStruttura(body.struttura)
       }
     })
 
-    return NextResponse.json(updated)
+    return NextResponse.json({ ...updated, struttura: parseStruttura(updated.struttura) })
   } catch (err) {
     console.error('Errore PUT menu base:', err)
     return NextResponse.json({ error: 'Errore aggiornamento menù' }, { status: 500 })

@@ -38,7 +38,11 @@ export async function POST(req: Request) {
             telefono: cr.telefono?.trim() || null,
             tipoCliente: cr.tipoCliente || null,
             canalePrimoContatto: body.canalePrimoContatto || null,
-            dataPrimoContatto: new Date()
+            dataPrimoContatto: cr.dataPrimoContatto
+              ? new Date(cr.dataPrimoContatto)
+              : body.dataPrimoContatto
+                ? new Date(body.dataPrimoContatto)
+                : new Date()
           }
         })
       }
