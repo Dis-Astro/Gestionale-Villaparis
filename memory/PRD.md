@@ -70,6 +70,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_10.json` → UX planimetria + export + schema preferiti PASS ✅
 - Testing Agent: `/app/test_reports/iteration_11.json` → refinement UI preferiti + layout controlli PASS ✅
 - Smoke test Playwright locale: card schema preferiti compatta e senza elementi ridondanti ✅
+- Testing Agent: `/app/test_reports/iteration_12.json` → card schema preferiti ultra-semplificata PASS ✅
 
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
