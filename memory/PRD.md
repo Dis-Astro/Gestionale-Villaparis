@@ -32,6 +32,13 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - introdotto editor in upload con **ritaglio operativo**: zoom, rotazione libera, spostamento X/Y
   - applicazione editor via canvas (output JPEG) per usare tutta l’area (`background-size: cover`)
   - salvataggio in evento + salvataggio in libreria planimetrie mantenuti
+- Nuovo ciclo audit completo dati/menu/stampe (11-03-2026):
+  - **Menu Base**: aggiunto flag per pietanza `defaultSelected` (selezione di default per velocizzare scelta cliente)
+  - **Menu Evento**: rimosso flusso “elimina portata”; ora selezione per singola pietanza con limiti categoria + extra piatto
+  - **API Menu Base** resa compatibile sqlite/postgres (fix errore salvataggio in preview)
+  - **Stampe PDF**: eliminato caso `undefined/undefined` cliente; aggiunto prezzo/persona e totale stimato in cliente+operativo
+  - **Anagrafica Clienti**: normalizzazione date input (`YYYY-MM-DD`) per coerenza card↔scheda cliente
+  - **Dashboard/Stats report**: rimosso fallback hardcoded 80, ora usa `evento.prezzo` o fallback `struttura.prezzo`
 - Report Excel aggiornato:
   - colonna `Prezzo/Persona` aggiunta
   - fallback automatico a `struttura.prezzo` se `evento.prezzo` non presente
@@ -42,6 +49,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
 - Testing Agent: `/app/test_reports/iteration_7.json` → nuove feature piantina PASS ✅
 - Testing Agent: `/app/test_reports/iteration_8.json` → editor planimetria (upload+crop+rotate) PASS ✅
+- Testing Agent: `/app/test_reports/iteration_9.json` → audit completo menu/stampe/clienti/report PASS ✅
 
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
