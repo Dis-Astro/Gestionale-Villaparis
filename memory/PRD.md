@@ -47,6 +47,11 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - libreria planimetrie: aggiunta eliminazione (`DELETE /api/piantine`), nomi troncati per evitare overlap UI
   - schema riuso eventi: introdotto flag **Schema Preferito** + filtro “Mostra solo Schemi Preferiti”
   - report azienda: ridotti warning chart con `ResponsiveContainer width=99% debounce=100`
+- Refinement UI (11-03-2026 - iterazione 11):
+  - rimossa opzione toggle “Mostra solo Schemi Preferiti”: ora la vista copia schema mostra sempre e solo i preferiti
+  - aggiunto controllo separato “Aggiungi ai preferiti” per gestire l’elenco senza perdere pulizia UI
+  - pannello controlli piantina ridisegnato in **segmented controls** compatti (più armonico e iPad-friendly)
+  - pulsanti `+ Tavolo` e `+ Stazione` allineati orizzontalmente (non più impilati)
 - Report Excel aggiornato:
   - colonna `Prezzo/Persona` aggiunta
   - fallback automatico a `struttura.prezzo` se `evento.prezzo` non presente
@@ -59,6 +64,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_8.json` → editor planimetria (upload+crop+rotate) PASS ✅
 - Testing Agent: `/app/test_reports/iteration_9.json` → audit completo menu/stampe/clienti/report PASS ✅
 - Testing Agent: `/app/test_reports/iteration_10.json` → UX planimetria + export + schema preferiti PASS ✅
+- Testing Agent: `/app/test_reports/iteration_11.json` → refinement UI preferiti + layout controlli PASS ✅
 
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
