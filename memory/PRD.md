@@ -52,6 +52,10 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - aggiunto controllo separato “Aggiungi ai preferiti” per gestire l’elenco senza perdere pulizia UI
   - pannello controlli piantina ridisegnato in **segmented controls** compatti (più armonico e iPad-friendly)
   - pulsanti `+ Tavolo` e `+ Stazione` allineati orizzontalmente (non più impilati)
+- Refinement schema preferiti (11-03-2026 - iterazione 12):
+  - semplificata la card “Scegli schema” in modalità ultra-compatta: solo dropdown preferiti + `Applica schema` + `⭐` + `Rimuovi Preferito`
+  - rimossi testi/righe ridondanti (“Visualizzazione attiva”, secondo dropdown gestione preferiti)
+  - comportamento coerente con richiesta operatore: vista pulita, meno elementi, minore carico cognitivo
 - Report Excel aggiornato:
   - colonna `Prezzo/Persona` aggiunta
   - fallback automatico a `struttura.prezzo` se `evento.prezzo` non presente
@@ -65,6 +69,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_9.json` → audit completo menu/stampe/clienti/report PASS ✅
 - Testing Agent: `/app/test_reports/iteration_10.json` → UX planimetria + export + schema preferiti PASS ✅
 - Testing Agent: `/app/test_reports/iteration_11.json` → refinement UI preferiti + layout controlli PASS ✅
+- Smoke test Playwright locale: card schema preferiti compatta e senza elementi ridondanti ✅
 
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.

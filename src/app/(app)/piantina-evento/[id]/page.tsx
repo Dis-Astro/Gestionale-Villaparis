@@ -17,7 +17,8 @@ import {
   Info,
   Printer,
   Image,
-  FileText
+  FileText,
+  Star
 } from 'lucide-react'
 
 export default function GestionePiantinaPage() {
@@ -30,7 +31,6 @@ export default function GestionePiantinaPage() {
   const [planimetrie, setPlanimetrie] = useState<{ nome: string; url: string }[]>([])
   const [eventiSimili, setEventiSimili] = useState<any[]>([])
   const [schemaDaCopiareId, setSchemaDaCopiareId] = useState('')
-  const [schemaDaPreferireId, setSchemaDaPreferireId] = useState('')
   const [preferitiSchemaIds, setPreferitiSchemaIds] = useState<number[]>([])
   const [variantiAttive, setVariantiAttive] = useState<VariantId[]>([])
   const [status, setStatus] = useState('')
@@ -501,67 +501,53 @@ export default function GestionePiantinaPage() {
 
       <Card data-testid="copia-schema-card">
         <CardHeader>
-          <CardTitle className="text-base">Copia schema da evento simile</CardTitle>
+          <CardTitle className="text-base">Scegli schema</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-gray-600" data-testid="schema-preferiti-label">
-            Visualizzazione attiva: <strong>solo Schemi Preferiti</strong>
-          </p>
-
-          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-2 items-start md:items-center" data-testid="schema-preferiti-compact-row">
           <select
             className="w-full md:max-w-lg border rounded-lg px-3 py-2 text-sm"
             value={schemaDaCopiareId}
             onChange={(e) => setSchemaDaCopiareId(e.target.value)}
             data-testid="copia-schema-select"
           >
-            <option value="">-- Seleziona evento di riferimento --</option>
+            <option value="">{eventiPreferiti.length ? '-- Seleziona evento di riferimento --' : 'Nessuno schema preferito'}</option>
             {eventiPreferiti.map((ev) => (
               <option key={ev.id} value={String(ev.id)}>
-                {preferitiSchemaIds.includes(Number(ev.id)) ? '★ ' : ''}#{ev.id} · {ev.titolo} · {ev.tipo} · {ev.personePreviste || 0} invitati
+                #{ev.id} · {ev.titolo} · {ev.tipo} · {ev.personePreviste || 0} invitati
               </option>
             ))}
           </select>
-          <Button
-            variant="outline"
-            onClick={() => schemaDaCopiareId && togglePreferitoSchema(Number(schemaDaCopiareId))}
-            disabled={!schemaDaCopiareId}
-            data-testid="remove-schema-preferito-btn"
-          >
-            Rimuovi Preferito
-          </Button>
+
           <Button
             variant="outline"
             onClick={handleCopiaSchema}
             disabled={!schemaDaCopiareId}
             data-testid="copia-schema-btn"
           >
-            Copia schema
+            Applica schema
           </Button>
-          </div>
 
-          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center pt-2 border-t">
-            <select
-              className="w-full md:max-w-lg border rounded-lg px-3 py-2 text-sm"
-              value={schemaDaPreferireId}
-              onChange={(e) => setSchemaDaPreferireId(e.target.value)}
-              data-testid="aggiungi-preferito-select"
-            >
-              <option value="">-- Aggiungi evento ai preferiti --</option>
-              {eventiSimili.map((ev) => (
-                <option key={ev.id} value={String(ev.id)}>
-                  #{ev.id} · {ev.titolo} · {ev.tipo} · {ev.personePreviste || 0} invitati
-                </option>
-              ))}
-            </select>
-            <Button
-              variant="outline"
-              onClick={() => schemaDaPreferireId && addPreferitoSchema(Number(schemaDaPreferireId))}
-              disabled={!schemaDaPreferireId || preferitiSchemaIds.includes(Number(schemaDaPreferireId))}
-              data-testid="add-schema-preferito-btn"
-            >
-              {preferitiSchemaIds.includes(Number(schemaDaPreferireId)) ? 'Già preferito' : 'Aggiungi Preferito'}
-            </Button>
+          <Button
+            variant="outline"
+            onClick={() => schemaDaCopiareId && addPreferitoSchema(Number(schemaDaCopiareId))}
+            disabled={!schemaDaCopiareId}
+            data-testid="add-schema-preferito-star-btn"
+            className="px-3"
+          >
+            <Star className={`w-4 h-4 ${preferitiSchemaIds.includes(Number(schemaDaCopiareId)) ? 'fill-current text-amber-500' : 'text-gray-500'}`} />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => schemaDaCopiareId && togglePreferitoSchema(Number(schemaDaCopiareId))}
+            disabled={!schemaDaCopiareId}
+            data-testid="remove-schema-preferito-btn"
+            className="text-xs text-gray-500 hover:text-red-600"
+          >
+            Rimuovi Preferito
+          </Button>
           </div>
         </CardContent>
       </Card>
