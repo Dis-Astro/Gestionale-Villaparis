@@ -30,8 +30,8 @@ export default function GestionePiantinaPage() {
   const [planimetrie, setPlanimetrie] = useState<{ nome: string; url: string }[]>([])
   const [eventiSimili, setEventiSimili] = useState<any[]>([])
   const [schemaDaCopiareId, setSchemaDaCopiareId] = useState('')
+  const [schemaDaPreferireId, setSchemaDaPreferireId] = useState('')
   const [preferitiSchemaIds, setPreferitiSchemaIds] = useState<number[]>([])
-  const [soloPreferiti, setSoloPreferiti] = useState(false)
   const [variantiAttive, setVariantiAttive] = useState<VariantId[]>([])
   const [status, setStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -168,6 +168,12 @@ export default function GestionePiantinaPage() {
       prev.includes(eventoIdToToggle)
         ? prev.filter((id) => id !== eventoIdToToggle)
         : [...prev, eventoIdToToggle]
+    )
+  }
+
+  const addPreferitoSchema = (eventoIdToAdd: number) => {
+    setPreferitiSchemaIds((prev) =>
+      prev.includes(eventoIdToAdd) ? prev : [...prev, eventoIdToAdd]
     )
   }
 
@@ -378,9 +384,7 @@ export default function GestionePiantinaPage() {
   }
 
   const riepilogo = calcolaRiepilogoVarianti(disposizione)
-  const eventiSimiliFiltrati = soloPreferiti
-    ? eventiSimili.filter((ev) => preferitiSchemaIds.includes(Number(ev.id)))
-    : eventiSimili
+  const eventiPreferiti = eventiSimili.filter((ev) => preferitiSchemaIds.includes(Number(ev.id)))
 
   if (!evento) {
     return (
@@ -500,18 +504,9 @@ export default function GestionePiantinaPage() {
           <CardTitle className="text-base">Copia schema da evento simile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <input
-              id="solo-preferiti-checkbox"
-              type="checkbox"
-              checked={soloPreferiti}
-              onChange={(e) => setSoloPreferiti(e.target.checked)}
-              data-testid="solo-preferiti-checkbox"
-            />
-            <label htmlFor="solo-preferiti-checkbox" className="text-sm text-gray-700">
-              Mostra solo Schemi Preferiti
-            </label>
-          </div>
+          <p className="text-sm text-gray-600" data-testid="schema-preferiti-label">
+            Visualizzazione attiva: <strong>solo Schemi Preferiti</strong>
+          </p>
 
           <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
           <select
@@ -521,7 +516,7 @@ export default function GestionePiantinaPage() {
             data-testid="copia-schema-select"
           >
             <option value="">-- Seleziona evento di riferimento --</option>
-            {eventiSimiliFiltrati.map((ev) => (
+            {eventiPreferiti.map((ev) => (
               <option key={ev.id} value={String(ev.id)}>
                 {preferitiSchemaIds.includes(Number(ev.id)) ? '★ ' : ''}#{ev.id} · {ev.titolo} · {ev.tipo} · {ev.personePreviste || 0} invitati
               </option>
@@ -531,9 +526,9 @@ export default function GestionePiantinaPage() {
             variant="outline"
             onClick={() => schemaDaCopiareId && togglePreferitoSchema(Number(schemaDaCopiareId))}
             disabled={!schemaDaCopiareId}
-            data-testid="toggle-schema-preferito-btn"
+            data-testid="remove-schema-preferito-btn"
           >
-            {preferitiSchemaIds.includes(Number(schemaDaCopiareId)) ? 'Rimuovi Preferito' : 'Schema Preferito'}
+            Rimuovi Preferito
           </Button>
           <Button
             variant="outline"
@@ -543,6 +538,30 @@ export default function GestionePiantinaPage() {
           >
             Copia schema
           </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center pt-2 border-t">
+            <select
+              className="w-full md:max-w-lg border rounded-lg px-3 py-2 text-sm"
+              value={schemaDaPreferireId}
+              onChange={(e) => setSchemaDaPreferireId(e.target.value)}
+              data-testid="aggiungi-preferito-select"
+            >
+              <option value="">-- Aggiungi evento ai preferiti --</option>
+              {eventiSimili.map((ev) => (
+                <option key={ev.id} value={String(ev.id)}>
+                  #{ev.id} · {ev.titolo} · {ev.tipo} · {ev.personePreviste || 0} invitati
+                </option>
+              ))}
+            </select>
+            <Button
+              variant="outline"
+              onClick={() => schemaDaPreferireId && addPreferitoSchema(Number(schemaDaPreferireId))}
+              disabled={!schemaDaPreferireId || preferitiSchemaIds.includes(Number(schemaDaPreferireId))}
+              data-testid="add-schema-preferito-btn"
+            >
+              {preferitiSchemaIds.includes(Number(schemaDaPreferireId)) ? 'Già preferito' : 'Aggiungi Preferito'}
+            </Button>
           </div>
         </CardContent>
       </Card>

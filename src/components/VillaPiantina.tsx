@@ -6,7 +6,7 @@ import Stazione from './Stazione'
 import PannelloVariantiTavolo from './PannelloVariantiTavolo'
 import { Tavolo as TavoloType, Stazione as StazioneType } from '../types/piantina'
 import { type VariantId, type VariantiTavolo } from '@/lib/types'
-import { Upload, Printer, Crop, Lock, Unlock, Grid3X3, Minus, Plus, Trash2 } from 'lucide-react'
+import { Upload, Printer, Crop, Lock, Unlock, Grid3X3, Trash2 } from 'lucide-react'
 
 export default function VillaPiantina({
   disposizione,
@@ -474,75 +474,87 @@ export default function VillaPiantina({
                 Modifica in griglia
               </button>
             )}
-            <button
-              className="bg-blue-500 text-white px-3 py-1 rounded"
-              onClick={aggiungiTavolo}
-              data-testid="piantina-aggiungi-tavolo-btn"
-            >
-              + Tavolo
-            </button>
-            <button
-              className="bg-green-500 text-white px-3 py-1 rounded"
-              onClick={aggiungiStazione}
-              data-testid="piantina-aggiungi-stazione-btn"
-            >
-              + Stazione
-            </button>
-
-            <div className="w-full border rounded p-2 space-y-2 bg-gray-50" data-testid="piantina-control-panel">
+            <div className="grid grid-cols-2 gap-1 w-full" data-testid="piantina-add-elements-row">
               <button
-                className="w-full px-2 py-1 rounded text-xs border bg-white"
-                onClick={() => setLockDrag((v) => !v)}
-                data-testid="piantina-toggle-lock-drag-btn"
+                className="bg-white border text-gray-800 px-2 py-1.5 rounded-lg text-sm"
+                onClick={aggiungiTavolo}
+                data-testid="piantina-aggiungi-tavolo-btn"
               >
-                <span className="inline-flex items-center gap-1">
-                  {lockDrag ? <Lock size={12} /> : <Unlock size={12} />}
-                  {lockDrag ? 'Drag bloccato' : 'Drag attivo'}
-                </span>
+                + Tavolo
               </button>
-
               <button
-                className={`w-full px-2 py-1 rounded text-xs border ${snapToGrid ? 'bg-amber-100 border-amber-300' : 'bg-white'}`}
-                onClick={() => setSnapToGrid((v) => !v)}
-                data-testid="piantina-toggle-snap-grid-btn"
+                className="bg-white border text-gray-800 px-2 py-1.5 rounded-lg text-sm"
+                onClick={aggiungiStazione}
+                data-testid="piantina-aggiungi-stazione-btn"
               >
-                <span className="inline-flex items-center gap-1"><Grid3X3 size={12} /> Snap griglia {snapToGrid ? 'ON' : 'OFF'}</span>
+                + Stazione
               </button>
+            </div>
 
-              <div className="text-[11px] text-gray-600">Ridimensiona tutti i tavoli</div>
-              <div className="flex gap-1">
-                <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeAllTavoli(-0.005)} data-testid="resize-all-tavoli-minus-btn"><Minus size={12} className="mx-auto" /></button>
-                <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeAllTavoli(0.005)} data-testid="resize-all-tavoli-plus-btn"><Plus size={12} className="mx-auto" /></button>
+            <div className="w-full border rounded-xl p-2 space-y-2 bg-white/95 shadow-sm" data-testid="piantina-control-panel">
+              <div className="grid grid-cols-2 gap-1" data-testid="piantina-segmented-core-controls">
+                <button
+                  className={`px-2 py-1.5 rounded-lg text-xs border ${lockDrag ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-white text-gray-700'}`}
+                  onClick={() => setLockDrag((v) => !v)}
+                  data-testid="piantina-toggle-lock-drag-btn"
+                >
+                  <span className="inline-flex items-center gap-1 justify-center w-full">
+                    {lockDrag ? <Lock size={12} /> : <Unlock size={12} />} Drag
+                  </span>
+                </button>
+                <button
+                  className={`px-2 py-1.5 rounded-lg text-xs border ${snapToGrid ? 'bg-blue-100 border-blue-300 text-blue-800' : 'bg-white text-gray-700'}`}
+                  onClick={() => setSnapToGrid((v) => !v)}
+                  data-testid="piantina-toggle-snap-grid-btn"
+                >
+                  <span className="inline-flex items-center gap-1 justify-center w-full"><Grid3X3 size={12} /> Snap</span>
+                </button>
               </div>
 
-              <div className="text-[11px] text-gray-600">Ridimensiona tutte le stazioni</div>
-              <div className="flex gap-1">
-                <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeAllStazioni(-0.01, -0.005)} data-testid="resize-all-stazioni-minus-btn"><Minus size={12} className="mx-auto" /></button>
-                <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeAllStazioni(0.01, 0.005)} data-testid="resize-all-stazioni-plus-btn"><Plus size={12} className="mx-auto" /></button>
+              <div className="grid grid-cols-2 gap-1" data-testid="piantina-segmented-resize-massive">
+                <button className="px-2 py-1.5 rounded-lg text-xs border bg-white" onClick={() => resizeAllTavoli(-0.005)} data-testid="resize-all-tavoli-minus-btn">Tavoli −</button>
+                <button className="px-2 py-1.5 rounded-lg text-xs border bg-white" onClick={() => resizeAllTavoli(0.005)} data-testid="resize-all-tavoli-plus-btn">Tavoli +</button>
+                <button className="px-2 py-1.5 rounded-lg text-xs border bg-white" onClick={() => resizeAllStazioni(-0.01, -0.005)} data-testid="resize-all-stazioni-minus-btn">Stazioni −</button>
+                <button className="px-2 py-1.5 rounded-lg text-xs border bg-white" onClick={() => resizeAllStazioni(0.01, 0.005)} data-testid="resize-all-stazioni-plus-btn">Stazioni +</button>
               </div>
 
-              {selectedTavoloId && (
-                <div className="space-y-1" data-testid="selected-tavolo-resize-controls">
-                  <div className="text-[11px] text-gray-600">Tavolo selezionato</div>
-                  <div className="flex gap-1">
-                    <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeSelectedTavolo(-0.005)} data-testid="resize-selected-tavolo-minus-btn"><Minus size={12} className="mx-auto" /></button>
-                    <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeSelectedTavolo(0.005)} data-testid="resize-selected-tavolo-plus-btn"><Plus size={12} className="mx-auto" /></button>
-                  </div>
-                </div>
-              )}
-
-              {selectedStazioneId && (
-                <div className="space-y-1" data-testid="selected-stazione-resize-controls">
-                  <div className="text-[11px] text-gray-600">Stazione selezionata</div>
-                  <div className="flex gap-1">
-                    <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeSelectedStazione(-0.01, -0.005)} data-testid="resize-selected-stazione-minus-btn"><Minus size={12} className="mx-auto" /></button>
-                    <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeSelectedStazione(0.01, 0.005)} data-testid="resize-selected-stazione-plus-btn"><Plus size={12} className="mx-auto" /></button>
-                  </div>
-                </div>
-              )}
+              <div className="grid grid-cols-2 gap-1" data-testid="piantina-segmented-resize-selected">
+                <button
+                  className="px-2 py-1.5 rounded-lg text-xs border bg-white disabled:opacity-40"
+                  onClick={() => selectedTavoloId && resizeSelectedTavolo(-0.005)}
+                  disabled={!selectedTavoloId}
+                  data-testid="resize-selected-tavolo-minus-btn"
+                >
+                  Tavolo Sel −
+                </button>
+                <button
+                  className="px-2 py-1.5 rounded-lg text-xs border bg-white disabled:opacity-40"
+                  onClick={() => selectedTavoloId && resizeSelectedTavolo(0.005)}
+                  disabled={!selectedTavoloId}
+                  data-testid="resize-selected-tavolo-plus-btn"
+                >
+                  Tavolo Sel +
+                </button>
+                <button
+                  className="px-2 py-1.5 rounded-lg text-xs border bg-white disabled:opacity-40"
+                  onClick={() => selectedStazioneId && resizeSelectedStazione(-0.01, -0.005)}
+                  disabled={!selectedStazioneId}
+                  data-testid="resize-selected-stazione-minus-btn"
+                >
+                  Staz Sel −
+                </button>
+                <button
+                  className="px-2 py-1.5 rounded-lg text-xs border bg-white disabled:opacity-40"
+                  onClick={() => selectedStazioneId && resizeSelectedStazione(0.01, 0.005)}
+                  disabled={!selectedStazioneId}
+                  data-testid="resize-selected-stazione-plus-btn"
+                >
+                  Staz Sel +
+                </button>
+              </div>
 
               <button
-                className="w-full px-2 py-1 rounded text-xs border bg-white"
+                className="w-full px-2 py-1.5 rounded-lg text-xs border bg-white"
                 onClick={resetSizeAll}
                 data-testid="reset-size-all-btn"
               >
