@@ -39,6 +39,14 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - **Stampe PDF**: eliminato caso `undefined/undefined` cliente; aggiunto prezzo/persona e totale stimato in cliente+operativo
   - **Anagrafica Clienti**: normalizzazione date input (`YYYY-MM-DD`) per coerenza card↔scheda cliente
   - **Dashboard/Stats report**: rimosso fallback hardcoded 80, ora usa `evento.prezzo` o fallback `struttura.prezzo`
+- Nuovo ciclo UX planimetria avanzata iPad/Pencil (11-03-2026):
+  - fix export/stampa planimetria: rimosso vincolo html2canvas `oklch`, export riscritto con canvas renderer custom (PNG/PDF/Stampa)
+  - varianti menu tavolo apribili **solo da pulsante** 🍽 (doppio click disattivato)
+  - resize tavoli/stazioni spostato in **toolbar esterna** (massivo + singolo + reset), eliminati controlli invasivi in overlay tavolo/stazione
+  - modalità operativa touch: **Drag Lock default ON** + **Snap Grid default ON**
+  - libreria planimetrie: aggiunta eliminazione (`DELETE /api/piantine`), nomi troncati per evitare overlap UI
+  - schema riuso eventi: introdotto flag **Schema Preferito** + filtro “Mostra solo Schemi Preferiti”
+  - report azienda: ridotti warning chart con `ResponsiveContainer width=99% debounce=100`
 - Report Excel aggiornato:
   - colonna `Prezzo/Persona` aggiunta
   - fallback automatico a `struttura.prezzo` se `evento.prezzo` non presente
@@ -50,6 +58,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_7.json` → nuove feature piantina PASS ✅
 - Testing Agent: `/app/test_reports/iteration_8.json` → editor planimetria (upload+crop+rotate) PASS ✅
 - Testing Agent: `/app/test_reports/iteration_9.json` → audit completo menu/stampe/clienti/report PASS ✅
+- Testing Agent: `/app/test_reports/iteration_10.json` → UX planimetria + export + schema preferiti PASS ✅
 
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
