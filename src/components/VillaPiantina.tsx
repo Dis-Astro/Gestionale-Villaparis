@@ -6,7 +6,7 @@ import Stazione from './Stazione'
 import PannelloVariantiTavolo from './PannelloVariantiTavolo'
 import { Tavolo as TavoloType, Stazione as StazioneType } from '../types/piantina'
 import { type VariantId, type VariantiTavolo } from '@/lib/types'
-import { Upload, Printer, Crop } from 'lucide-react'
+import { Upload, Printer, Crop, Lock, Unlock, Grid3X3, Minus, Plus, Trash2 } from 'lucide-react'
 
 export default function VillaPiantina({
   disposizione,
@@ -15,6 +15,7 @@ export default function VillaPiantina({
   planimetrie = [],
   onNuovaPlanimetria,
   onCambiaPlanimetria,
+  onDeletePlanimetria,
   onStampa,
   stampaRef,
   variantiAttive = []
@@ -25,6 +26,7 @@ export default function VillaPiantina({
   planimetrie?: { nome: string, url: string }[]
   onNuovaPlanimetria?: (file: File) => void | Promise<void>
   onCambiaPlanimetria?: (url: string) => void
+  onDeletePlanimetria?: (url: string) => void | Promise<void>
   onStampa?: () => void
   stampaRef?: React.RefObject<HTMLDivElement | null>
   variantiAttive?: VariantId[]
@@ -42,6 +44,8 @@ export default function VillaPiantina({
   const [editorOffsetY, setEditorOffsetY] = useState(0)
   const [isApplyingEditor, setIsApplyingEditor] = useState(false)
   const [isDraggingEditorImage, setIsDraggingEditorImage] = useState(false)
+  const [lockDrag, setLockDrag] = useState(true)
+  const [snapToGrid, setSnapToGrid] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const editorPreviewRef = useRef<HTMLDivElement>(null)
@@ -71,15 +75,31 @@ export default function VillaPiantina({
     })
   }
 
+  const clampTavolo = (value: number) => Math.max(0.02, Math.min(0.18, value))
+  const clampStazioneW = (value: number) => Math.max(0.08, Math.min(0.45, value))
+  const clampStazioneH = (value: number) => Math.max(0.04, Math.min(0.25, value))
+
+  const selectedTavoloId = selectedItem?.startsWith('tavolo-') ? Number(selectedItem.split('-')[1]) : null
+  const selectedStazioneId = selectedItem?.startsWith('stazione-') ? Number(selectedItem.split('-')[1]) : null
+
   const handleDragEnd = (tipo: 'tavolo' | 'stazione', id: number, nuovaPosPerc: { x: number, y: number }) => {
+    if (lockDrag) return
+    const step = 0.02
+    const normalized = snapToGrid
+      ? {
+          x: Math.round(nuovaPosPerc.x / step) * step,
+          y: Math.round(nuovaPosPerc.y / step) * step
+        }
+      : nuovaPosPerc
+
     if (tipo === 'tavolo') {
       const nuoviTavoli = safeDisposizione.tavoli.map(t =>
-        t.id === id ? { ...t, posizione: { xPerc: nuovaPosPerc.x, yPerc: nuovaPosPerc.y } } : t
+        t.id === id ? { ...t, posizione: { xPerc: normalized.x, yPerc: normalized.y } } : t
       )
       emitChange({ tavoli: nuoviTavoli })
     } else {
       const nuoveStazioni = safeDisposizione.stazioni.map(s =>
-        s.id === id ? { ...s, posizione: { xPerc: nuovaPosPerc.x, yPerc: nuovaPosPerc.y } } : s
+        s.id === id ? { ...s, posizione: { xPerc: normalized.x, yPerc: normalized.y } } : s
       )
       emitChange({ stazioni: nuoveStazioni })
     }
@@ -118,6 +138,64 @@ export default function VillaPiantina({
       s.id === id ? { ...s, dimensionePerc } : s
     )
     emitChange({ stazioni: nuoveStazioni })
+  }
+
+  const resizeSelectedTavolo = (delta: number) => {
+    if (!selectedTavoloId) return
+    const target = safeDisposizione.tavoli.find((t) => t.id === selectedTavoloId)
+    if (!target) return
+    handleResizeTavolo(selectedTavoloId, clampTavolo((target.dimensionePerc ?? 0.03) + delta))
+  }
+
+  const resizeSelectedStazione = (deltaW: number, deltaH: number) => {
+    if (!selectedStazioneId) return
+    const target = safeDisposizione.stazioni.find((s) => s.id === selectedStazioneId)
+    if (!target) return
+    handleResizeStazione(selectedStazioneId, {
+      larghezzaPerc: clampStazioneW((target.dimensionePerc?.larghezzaPerc ?? 0.15) + deltaW),
+      altezzaPerc: clampStazioneH((target.dimensionePerc?.altezzaPerc ?? 0.06) + deltaH)
+    })
+  }
+
+  const resizeAllTavoli = (delta: number) => {
+    emitChange({
+      tavoli: safeDisposizione.tavoli.map((t) => ({
+        ...t,
+        dimensionePerc: clampTavolo((t.dimensionePerc ?? 0.03) + delta)
+      }))
+    })
+  }
+
+  const resizeAllStazioni = (deltaW: number, deltaH: number) => {
+    emitChange({
+      stazioni: safeDisposizione.stazioni.map((s) => ({
+        ...s,
+        dimensionePerc: {
+          larghezzaPerc: clampStazioneW((s.dimensionePerc?.larghezzaPerc ?? 0.15) + deltaW),
+          altezzaPerc: clampStazioneH((s.dimensionePerc?.altezzaPerc ?? 0.06) + deltaH)
+        }
+      }))
+    })
+  }
+
+  const resetSizeAll = () => {
+    emitChange({
+      tavoli: safeDisposizione.tavoli.map((t) => ({ ...t, dimensionePerc: 0.03 })),
+      stazioni: safeDisposizione.stazioni.map((s) => ({
+        ...s,
+        dimensionePerc: { larghezzaPerc: 0.15, altezzaPerc: 0.06 }
+      }))
+    })
+  }
+
+  const handleDeleteSelectedPlanimetria = async () => {
+    if (!planimetriaSelezionata || !onDeletePlanimetria) return
+    await Promise.resolve(onDeletePlanimetria(planimetriaSelezionata))
+    if (backgroundImage === planimetriaSelezionata) {
+      setBackgroundImage(null)
+      emitChange({ immagine: undefined })
+    }
+    setPlanimetriaSelezionata(null)
   }
 
   const handleDeleteTavolo = (id: number) => {
@@ -350,16 +428,27 @@ export default function VillaPiantina({
               <span className="hidden md:inline">Stampa</span>
             </button>
             {planimetrie && planimetrie.length > 0 && (
-              <select
-                className="border rounded px-2 py-1"
-                value={planimetriaSelezionata ?? ''}
-                onChange={e => handleChangePlanimetria(e.target.value)}
-              >
-                <option value="">-- Planimetria --</option>
-                {planimetrie.map(p => (
-                  <option key={p.url} value={p.url}>{p.nome}</option>
-                ))}
-              </select>
+              <div className="w-full space-y-1" data-testid="piantina-library-wrap">
+                <select
+                  className="border rounded px-2 py-1 w-full text-sm"
+                  value={planimetriaSelezionata ?? ''}
+                  onChange={e => handleChangePlanimetria(e.target.value)}
+                  data-testid="piantina-select-plani"
+                >
+                  <option value="">-- Planimetria --</option>
+                  {planimetrie.map(p => (
+                    <option key={p.url} value={p.url}>{p.nome.length > 32 ? `${p.nome.slice(0, 32)}…` : p.nome}</option>
+                  ))}
+                </select>
+                <button
+                  className="bg-red-500 text-white px-2 py-1 rounded text-xs w-full disabled:opacity-40"
+                  onClick={handleDeleteSelectedPlanimetria}
+                  disabled={!planimetriaSelezionata}
+                  data-testid="piantina-delete-selected-btn"
+                >
+                  <span className="inline-flex items-center gap-1"><Trash2 size={12} /> Elimina planimetria</span>
+                </button>
+              </div>
             )}
             <button
               className="bg-blue-500 text-white px-3 py-1 rounded flex items-center gap-1"
@@ -399,6 +488,67 @@ export default function VillaPiantina({
             >
               + Stazione
             </button>
+
+            <div className="w-full border rounded p-2 space-y-2 bg-gray-50" data-testid="piantina-control-panel">
+              <button
+                className="w-full px-2 py-1 rounded text-xs border bg-white"
+                onClick={() => setLockDrag((v) => !v)}
+                data-testid="piantina-toggle-lock-drag-btn"
+              >
+                <span className="inline-flex items-center gap-1">
+                  {lockDrag ? <Lock size={12} /> : <Unlock size={12} />}
+                  {lockDrag ? 'Drag bloccato' : 'Drag attivo'}
+                </span>
+              </button>
+
+              <button
+                className={`w-full px-2 py-1 rounded text-xs border ${snapToGrid ? 'bg-amber-100 border-amber-300' : 'bg-white'}`}
+                onClick={() => setSnapToGrid((v) => !v)}
+                data-testid="piantina-toggle-snap-grid-btn"
+              >
+                <span className="inline-flex items-center gap-1"><Grid3X3 size={12} /> Snap griglia {snapToGrid ? 'ON' : 'OFF'}</span>
+              </button>
+
+              <div className="text-[11px] text-gray-600">Ridimensiona tutti i tavoli</div>
+              <div className="flex gap-1">
+                <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeAllTavoli(-0.005)} data-testid="resize-all-tavoli-minus-btn"><Minus size={12} className="mx-auto" /></button>
+                <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeAllTavoli(0.005)} data-testid="resize-all-tavoli-plus-btn"><Plus size={12} className="mx-auto" /></button>
+              </div>
+
+              <div className="text-[11px] text-gray-600">Ridimensiona tutte le stazioni</div>
+              <div className="flex gap-1">
+                <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeAllStazioni(-0.01, -0.005)} data-testid="resize-all-stazioni-minus-btn"><Minus size={12} className="mx-auto" /></button>
+                <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeAllStazioni(0.01, 0.005)} data-testid="resize-all-stazioni-plus-btn"><Plus size={12} className="mx-auto" /></button>
+              </div>
+
+              {selectedTavoloId && (
+                <div className="space-y-1" data-testid="selected-tavolo-resize-controls">
+                  <div className="text-[11px] text-gray-600">Tavolo selezionato</div>
+                  <div className="flex gap-1">
+                    <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeSelectedTavolo(-0.005)} data-testid="resize-selected-tavolo-minus-btn"><Minus size={12} className="mx-auto" /></button>
+                    <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeSelectedTavolo(0.005)} data-testid="resize-selected-tavolo-plus-btn"><Plus size={12} className="mx-auto" /></button>
+                  </div>
+                </div>
+              )}
+
+              {selectedStazioneId && (
+                <div className="space-y-1" data-testid="selected-stazione-resize-controls">
+                  <div className="text-[11px] text-gray-600">Stazione selezionata</div>
+                  <div className="flex gap-1">
+                    <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeSelectedStazione(-0.01, -0.005)} data-testid="resize-selected-stazione-minus-btn"><Minus size={12} className="mx-auto" /></button>
+                    <button className="flex-1 border rounded bg-white py-1" onClick={() => resizeSelectedStazione(0.01, 0.005)} data-testid="resize-selected-stazione-plus-btn"><Plus size={12} className="mx-auto" /></button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                className="w-full px-2 py-1 rounded text-xs border bg-white"
+                onClick={resetSizeAll}
+                data-testid="reset-size-all-btn"
+              >
+                Reset dimensioni
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -408,6 +558,8 @@ export default function VillaPiantina({
         <div
           ref={stampaRef || containerRef}
           className="relative border rounded-lg overflow-hidden aspect-[16/9] w-full bg-white"
+          data-testid="piantina-canvas-area"
+          onClick={() => setSelectedItem(null)}
         >
           {/* Background */}
           <div
@@ -438,9 +590,9 @@ export default function VillaPiantina({
               onDelete={() => handleDeleteTavolo(tavolo.id)}
               onRename={nome => handleRenameTavolo(tavolo.id, nome)}
               onUpdatePosti={(posti) => handleUpdatePostiTavolo(tavolo.id, posti)}
-              onResize={(dimensionePerc) => handleResizeTavolo(tavolo.id, dimensionePerc)}
               onOpenVarianti={() => setTavoloVariantiAperto(tavolo)}
               editabile={editabile}
+              dragEnabled={!lockDrag}
               containerRef={stampaRef || containerRef}
             />
           ))}
@@ -456,8 +608,8 @@ export default function VillaPiantina({
               onRotate={rot => handleRotateStazione(stazione.id, rot)}
               onDelete={() => handleDeleteStazione(stazione.id)}
               onRename={nome => handleRenameStazione(stazione.id, nome)}
-              onResize={(dimensionePerc) => handleResizeStazione(stazione.id, dimensionePerc)}
               editabile={editabile}
+              dragEnabled={!lockDrag}
               containerRef={stampaRef || containerRef}
             />
           ))}

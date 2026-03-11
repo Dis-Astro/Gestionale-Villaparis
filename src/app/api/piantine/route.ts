@@ -29,7 +29,8 @@ function getList() {
       nome: f
         .replace(/\.[^/.]+$/, '')
         .replace(/-\d{13}$/, '')
-        .replace(/[-_]/g, ' '),
+        .replace(/[-_]/g, ' ')
+        .slice(0, 48),
       url: `/planimetrie/${f}`
     }))
 }
@@ -79,5 +80,30 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error('Errore upload planimetria:', e)
     return NextResponse.json({ error: 'Errore upload planimetria' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    ensureDir()
+    const { searchParams } = new URL(req.url)
+    const url = searchParams.get('url')
+
+    if (!url || !url.startsWith('/planimetrie/')) {
+      return NextResponse.json({ error: 'URL planimetria non valido' }, { status: 400 })
+    }
+
+    const fileName = path.basename(url)
+    const filePath = path.join(PLANIMETRIE_DIR, fileName)
+
+    if (!fs.existsSync(filePath)) {
+      return NextResponse.json({ error: 'Planimetria non trovata' }, { status: 404 })
+    }
+
+    fs.unlinkSync(filePath)
+    return NextResponse.json({ success: true })
+  } catch (e) {
+    console.error('Errore eliminazione planimetria:', e)
+    return NextResponse.json({ error: 'Errore eliminazione planimetria' }, { status: 500 })
   }
 }

@@ -331,7 +331,7 @@ export default function ReportAziendaPage() {
             </CardHeader>
             <CardContent>
               <div id="chart-ricavi" className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height={280} debounce={100}>
                   <BarChart data={stats.monthly}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="mese" tick={{ fontSize: 12 }} />
@@ -364,7 +364,7 @@ export default function ReportAziendaPage() {
             </CardHeader>
             <CardContent>
               <div id="chart-eventi" className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height={280} debounce={100}>
                   <LineChart data={stats.monthly}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="mese" tick={{ fontSize: 12 }} />
@@ -400,7 +400,7 @@ export default function ReportAziendaPage() {
             </CardHeader>
             <CardContent>
               <div id="chart-ospiti" className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height={280} debounce={100}>
                   <BarChart data={stats.monthly}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="mese" tick={{ fontSize: 12 }} />
@@ -432,7 +432,7 @@ export default function ReportAziendaPage() {
             </CardHeader>
             <CardContent>
               <div id="chart-tipo" className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height={280} debounce={100}>
                   <PieChart>
                     <Pie
                       data={stats.byTipo}

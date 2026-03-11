@@ -22,8 +22,8 @@ type StazioneProps = {
   onRotate: (rot: number) => void
   onDelete: () => void
   onRename: (nome: string) => void
-  onResize: (dimensione: { larghezzaPerc: number; altezzaPerc: number }) => void
   editabile: boolean
+  dragEnabled?: boolean
   containerRef: React.RefObject<HTMLDivElement | null> // obbligatorio!
 }
 
@@ -35,8 +35,8 @@ export default function Stazione({
   onRotate,
   onDelete,
   onRename,
-  onResize,
   editabile,
+  dragEnabled = true,
   containerRef
 }: StazioneProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -77,40 +77,10 @@ export default function Stazione({
         onDragEnd({ x: xPerc, y: yPerc })
       }
     },
-    canDrag: editabile
+    canDrag: editabile && dragEnabled
   })
 
   drag(ref)
-
-  const clampWidth = (value: number) => Math.max(0.08, Math.min(0.45, value))
-  const clampHeight = (value: number) => Math.max(0.04, Math.min(0.25, value))
-
-  const handleResizePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    e.stopPropagation()
-    if (!editabile) return
-
-    const startX = e.clientX
-    const startY = e.clientY
-    const startW = stazione.dimensionePerc?.larghezzaPerc ?? 0.15
-    const startH = stazione.dimensionePerc?.altezzaPerc ?? 0.06
-
-    const handlePointerMove = (ev: PointerEvent) => {
-      const deltaXPerc = (ev.clientX - startX) / Math.max(containerSize.width, 1)
-      const deltaYPerc = (ev.clientY - startY) / Math.max(containerSize.height, 1)
-      onResize({
-        larghezzaPerc: clampWidth(startW + deltaXPerc),
-        altezzaPerc: clampHeight(startH + deltaYPerc)
-      })
-    }
-
-    const handlePointerUp = () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-  }
 
   return (
     <div
@@ -128,11 +98,11 @@ export default function Stazione({
         lineHeight: `${altezza}px`,
         transform: `rotate(${stazione.rotazione || 0}deg)`,
         zIndex: selected ? 10 : 1,
-        cursor: editabile ? 'move' : 'default',
+        cursor: editabile ? (dragEnabled ? 'move' : 'default') : 'default',
         userSelect: 'none',
         boxSizing: 'border-box'
       }}
-      onClick={onSelect}
+      onClick={(e) => { e.stopPropagation(); onSelect() }}
       data-testid={`stazione-${stazione.id}`}
     >
       {stazione.nome}
@@ -144,58 +114,12 @@ export default function Stazione({
             type="text"
             value={stazione.nome}
             onChange={e => onRename(e.target.value)}
+            onClick={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
             style={{ width: 80, marginLeft: 4, border: '1px solid #ccc', borderRadius: 4, padding: '0 2px' }}
             data-testid={`rename-stazione-${stazione.id}`}
           />
-          <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-            <input
-              type="range"
-              min={0.08}
-              max={0.45}
-              step={0.01}
-              value={stazione.dimensionePerc?.larghezzaPerc ?? 0.15}
-              onChange={(e) => onResize({
-                larghezzaPerc: clampWidth(parseFloat(e.target.value)),
-                altezzaPerc: stazione.dimensionePerc?.altezzaPerc ?? 0.06
-              })}
-              data-testid={`resize-stazione-width-${stazione.id}`}
-            />
-            <input
-              type="range"
-              min={0.04}
-              max={0.25}
-              step={0.01}
-              value={stazione.dimensionePerc?.altezzaPerc ?? 0.06}
-              onChange={(e) => onResize({
-                larghezzaPerc: stazione.dimensionePerc?.larghezzaPerc ?? 0.15,
-                altezzaPerc: clampHeight(parseFloat(e.target.value))
-              })}
-              data-testid={`resize-stazione-height-${stazione.id}`}
-            />
-          </div>
         </div>
-      )}
-
-      {editabile && selected && (
-        <button
-          type="button"
-          onPointerDown={handleResizePointerDown}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            right: -6,
-            bottom: -6,
-            width: 14,
-            height: 14,
-            borderRadius: 999,
-            border: '2px solid white',
-            background: '#16a34a',
-            cursor: 'nwse-resize',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
-          }}
-          data-testid={`resize-handle-stazione-${stazione.id}`}
-          aria-label={`Ridimensiona stazione ${stazione.nome}`}
-        />
       )}
     </div>
   )

@@ -8,7 +8,6 @@ import VillaPiantina from '@/components/VillaPiantina'
 import VillaPiantinaDnDWrapper from '@/components/VillaPiantinaDnDWrapper'
 import { type VariantId, calcolaRiepilogoVarianti, VARIANTI_DEFAULT } from '@/lib/types'
 import BannerBlocco, { getOverrideHeaders } from '@/components/BannerBlocco'
-import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { 
   Layout, 
@@ -31,6 +30,8 @@ export default function GestionePiantinaPage() {
   const [planimetrie, setPlanimetrie] = useState<{ nome: string; url: string }[]>([])
   const [eventiSimili, setEventiSimili] = useState<any[]>([])
   const [schemaDaCopiareId, setSchemaDaCopiareId] = useState('')
+  const [preferitiSchemaIds, setPreferitiSchemaIds] = useState<number[]>([])
+  const [soloPreferiti, setSoloPreferiti] = useState(false)
   const [variantiAttive, setVariantiAttive] = useState<VariantId[]>([])
   const [status, setStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -91,6 +92,22 @@ export default function GestionePiantinaPage() {
   }, [id, fetchPlanimetrie])
 
   useEffect(() => {
+    const raw = localStorage.getItem('schema_preferiti_ids')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) setPreferitiSchemaIds(parsed.map((x) => Number(x)).filter(Boolean))
+      } catch {
+        setPreferitiSchemaIds([])
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('schema_preferiti_ids', JSON.stringify(preferitiSchemaIds))
+  }, [preferitiSchemaIds])
+
+  useEffect(() => {
     const fetchEventiSimili = async () => {
       if (!evento?.tipo) return
       try {
@@ -146,6 +163,35 @@ export default function GestionePiantinaPage() {
     setTimeout(() => setStatus(''), 2000)
   }
 
+  const togglePreferitoSchema = (eventoIdToToggle: number) => {
+    setPreferitiSchemaIds((prev) =>
+      prev.includes(eventoIdToToggle)
+        ? prev.filter((id) => id !== eventoIdToToggle)
+        : [...prev, eventoIdToToggle]
+    )
+  }
+
+  const handleDeletePlanimetriaGlobale = async (url: string) => {
+    const res = await fetch(`/api/piantine?url=${encodeURIComponent(url)}`, { method: 'DELETE' })
+    if (res.ok) {
+      await fetchPlanimetrie()
+      setStatus('✅ Planimetria eliminata dalla libreria')
+      setTimeout(() => setStatus(''), 2000)
+    } else {
+      setStatus('❌ Errore eliminazione planimetria')
+    }
+  }
+
+  const loadImage = (src: string) => {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new window.Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = src
+    })
+  }
+
   const handleSave = async () => {
     if (!evento) return
     setIsSaving(true)
@@ -177,59 +223,164 @@ export default function GestionePiantinaPage() {
   }
 
   const generateCanvas = async () => {
-    if (!stampaRef.current) return null
-    return html2canvas(stampaRef.current, {
-      backgroundColor: '#ffffff',
-      scale: 2,
-      useCORS: true
-    })
+    const width = 1920
+    const height = 1080
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+
+    if (disposizione?.immagine) {
+      try {
+        const img = await loadImage(disposizione.immagine)
+        const scale = Math.max(width / img.width, height / img.height)
+        const drawW = img.width * scale
+        const drawH = img.height * scale
+        const x = (width - drawW) / 2
+        const y = (height - drawH) / 2
+        ctx.drawImage(img, x, y, drawW, drawH)
+      } catch {
+        // se immagine non caricabile, continua con sfondo bianco
+      }
+    }
+
+    // Stazioni
+    for (const stazione of disposizione?.stazioni || []) {
+      const x = (stazione.posizione?.xPerc || 0) * width
+      const y = (stazione.posizione?.yPerc || 0) * height
+      const w = (stazione.dimensionePerc?.larghezzaPerc || 0.15) * width
+      const h = (stazione.dimensionePerc?.altezzaPerc || 0.06) * height
+
+      ctx.save()
+      ctx.translate(x + w / 2, y + h / 2)
+      ctx.rotate(((stazione.rotazione || 0) * Math.PI) / 180)
+      ctx.fillStyle = '#e9f7ef'
+      ctx.strokeStyle = '#22c55e'
+      ctx.lineWidth = 2
+      const radius = 12
+      ctx.beginPath()
+      ctx.moveTo(-w / 2 + radius, -h / 2)
+      ctx.lineTo(w / 2 - radius, -h / 2)
+      ctx.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + radius)
+      ctx.lineTo(w / 2, h / 2 - radius)
+      ctx.quadraticCurveTo(w / 2, h / 2, w / 2 - radius, h / 2)
+      ctx.lineTo(-w / 2 + radius, h / 2)
+      ctx.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - radius)
+      ctx.lineTo(-w / 2, -h / 2 + radius)
+      ctx.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + radius, -h / 2)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.fillStyle = '#111827'
+      ctx.font = `${Math.max(14, h * 0.45)}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(stazione.nome || 'Stazione', 0, 0)
+      ctx.restore()
+    }
+
+    // Tavoli
+    for (const tavolo of disposizione?.tavoli || []) {
+      const x = (tavolo.posizione?.xPerc || 0) * width
+      const y = (tavolo.posizione?.yPerc || 0) * height
+      const diameter = (tavolo.dimensionePerc || 0.03) * width
+      const radius = diameter / 2
+
+      ctx.save()
+      ctx.translate(x + radius, y + radius)
+      ctx.rotate(((tavolo.rotazione || 0) * Math.PI) / 180)
+
+      ctx.fillStyle = '#f9fafb'
+      ctx.strokeStyle = '#6b7280'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(0, 0, radius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.fillStyle = '#111827'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.font = `${Math.max(11, diameter * 0.25)}px sans-serif`
+      ctx.fillText(tavolo.numero || `T${tavolo.id}`, 0, -Math.max(4, diameter * 0.08))
+
+      ctx.fillStyle = '#4b5563'
+      ctx.font = `${Math.max(9, diameter * 0.16)}px sans-serif`
+      ctx.fillText(`${tavolo.posti || 0}p`, 0, Math.max(8, diameter * 0.18))
+      ctx.restore()
+    }
+
+    return canvas
   }
 
   const handleExportPng = async () => {
-    const canvas = await generateCanvas()
-    if (!canvas) return
-    const imgData = canvas.toDataURL('image/png')
-    const a = document.createElement('a')
-    a.href = imgData
-    a.download = `planimetria-evento-${id}.png`
-    a.click()
+    try {
+      const canvas = await generateCanvas()
+      if (!canvas) return
+      const imgData = canvas.toDataURL('image/png')
+      const a = document.createElement('a')
+      a.href = imgData
+      a.download = `planimetria-evento-${id}.png`
+      a.click()
+    } catch (error) {
+      console.error('Errore export PNG:', error)
+      setStatus('❌ Errore export PNG planimetria')
+    }
   }
 
   const handleExportPdf = async () => {
-    const canvas = await generateCanvas()
-    if (!canvas) return
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    pdf.addImage(imgData, 'PNG', 8, 8, pageWidth - 16, pageHeight - 16, undefined, 'FAST')
-    pdf.save(`planimetria-evento-${id}.pdf`)
+    try {
+      const canvas = await generateCanvas()
+      if (!canvas) return
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      pdf.addImage(imgData, 'PNG', 8, 8, pageWidth - 16, pageHeight - 16, undefined, 'FAST')
+      pdf.save(`planimetria-evento-${id}.pdf`)
+    } catch (error) {
+      console.error('Errore export PDF:', error)
+      setStatus('❌ Errore export PDF planimetria')
+    }
   }
 
   const handleStampaPlanimetria = async () => {
-    const canvas = await generateCanvas()
-    if (!canvas) return
-    const imgData = canvas.toDataURL('image/png')
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head><title>Planimetria Evento</title></head>
-          <body style="margin:0;display:flex;justify-content:center;align-items:center;background:#fff;">
-            <img src="${imgData}" style="max-width:100%;height:auto;"/>
-          </body>
-        </html>
-      `)
-      printWindow.document.close()
-      printWindow.focus()
-      setTimeout(() => {
-        printWindow.print()
-        printWindow.close()
-      }, 300)
+    try {
+      const canvas = await generateCanvas()
+      if (!canvas) return
+      const imgData = canvas.toDataURL('image/png')
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head><title>Planimetria Evento</title></head>
+            <body style="margin:0;display:flex;justify-content:center;align-items:center;background:#fff;">
+              <img src="${imgData}" style="max-width:100%;height:auto;"/>
+            </body>
+          </html>
+        `)
+        printWindow.document.close()
+        printWindow.focus()
+        setTimeout(() => {
+          printWindow.print()
+          printWindow.close()
+        }, 300)
+      }
+    } catch (error) {
+      console.error('Errore stampa planimetria:', error)
+      setStatus('❌ Errore stampa planimetria')
     }
   }
 
   const riepilogo = calcolaRiepilogoVarianti(disposizione)
+  const eventiSimiliFiltrati = soloPreferiti
+    ? eventiSimili.filter((ev) => preferitiSchemaIds.includes(Number(ev.id)))
+    : eventiSimili
 
   if (!evento) {
     return (
@@ -348,7 +499,21 @@ export default function GestionePiantinaPage() {
         <CardHeader>
           <CardTitle className="text-base">Copia schema da evento simile</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              id="solo-preferiti-checkbox"
+              type="checkbox"
+              checked={soloPreferiti}
+              onChange={(e) => setSoloPreferiti(e.target.checked)}
+              data-testid="solo-preferiti-checkbox"
+            />
+            <label htmlFor="solo-preferiti-checkbox" className="text-sm text-gray-700">
+              Mostra solo Schemi Preferiti
+            </label>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
           <select
             className="w-full md:max-w-lg border rounded-lg px-3 py-2 text-sm"
             value={schemaDaCopiareId}
@@ -356,12 +521,20 @@ export default function GestionePiantinaPage() {
             data-testid="copia-schema-select"
           >
             <option value="">-- Seleziona evento di riferimento --</option>
-            {eventiSimili.map((ev) => (
+            {eventiSimiliFiltrati.map((ev) => (
               <option key={ev.id} value={String(ev.id)}>
-                #{ev.id} · {ev.titolo} · {ev.tipo} · {ev.personePreviste || 0} invitati
+                {preferitiSchemaIds.includes(Number(ev.id)) ? '★ ' : ''}#{ev.id} · {ev.titolo} · {ev.tipo} · {ev.personePreviste || 0} invitati
               </option>
             ))}
           </select>
+          <Button
+            variant="outline"
+            onClick={() => schemaDaCopiareId && togglePreferitoSchema(Number(schemaDaCopiareId))}
+            disabled={!schemaDaCopiareId}
+            data-testid="toggle-schema-preferito-btn"
+          >
+            {preferitiSchemaIds.includes(Number(schemaDaCopiareId)) ? 'Rimuovi Preferito' : 'Schema Preferito'}
+          </Button>
           <Button
             variant="outline"
             onClick={handleCopiaSchema}
@@ -370,6 +543,7 @@ export default function GestionePiantinaPage() {
           >
             Copia schema
           </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -386,6 +560,7 @@ export default function GestionePiantinaPage() {
               planimetrie={planimetrie}
               onNuovaPlanimetria={handleUploadPlanimetriaGlobale}
               onCambiaPlanimetria={(url) => setDisposizione((prev) => ({ ...prev, immagine: url }))}
+              onDeletePlanimetria={handleDeletePlanimetriaGlobale}
               variantiAttive={variantiAttive}
             />
           </VillaPiantinaDnDWrapper>

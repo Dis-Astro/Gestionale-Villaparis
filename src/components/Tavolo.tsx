@@ -24,9 +24,9 @@ type TavoloProps = {
   onDelete: () => void
   onRename: (nome: string) => void
   onUpdatePosti: (posti: number) => void
-  onResize: (dimensionePerc: number) => void
   onOpenVarianti?: () => void  // Nuovo callback per aprire pannello varianti
   editabile: boolean
+  dragEnabled?: boolean
   containerRef: React.RefObject<HTMLDivElement | null>
 }
 
@@ -39,9 +39,9 @@ export default function Tavolo({
   onDelete,
   onRename,
   onUpdatePosti,
-  onResize,
   onOpenVarianti,
   editabile,
+  dragEnabled = true,
   containerRef
 }: TavoloProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -81,7 +81,7 @@ export default function Tavolo({
         onDragEnd({ x: xPerc, y: yPerc })
       }
     },
-    canDrag: editabile
+    canDrag: editabile && dragEnabled
   })
 
   drag(ref)
@@ -106,37 +106,6 @@ export default function Tavolo({
     onSelect()
   }
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (editabile && onOpenVarianti) {
-      onOpenVarianti()
-    }
-  }
-
-  const clampDimension = (value: number) => Math.max(0.025, Math.min(0.18, value))
-
-  const handleResizePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    e.stopPropagation()
-    if (!editabile) return
-
-    const startX = e.clientX
-    const startSize = tavolo.dimensionePerc ?? 0.1
-
-    const handlePointerMove = (ev: PointerEvent) => {
-      const deltaPx = ev.clientX - startX
-      const deltaPerc = deltaPx / Math.max(containerSize.width, 1)
-      onResize(clampDimension(startSize + deltaPerc))
-    }
-
-    const handlePointerUp = () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-  }
-
   return (
     <div
       ref={ref}
@@ -156,12 +125,11 @@ export default function Tavolo({
         justifyContent: 'center',
         transform: `rotate(${tavolo.rotazione || 0}deg)`,
         zIndex: selected ? 10 : 1,
-        cursor: editabile ? 'move' : 'default',
+        cursor: editabile ? (dragEnabled ? 'move' : 'default') : 'default',
         userSelect: 'none',
         boxSizing: 'border-box'
       }}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
       data-testid={`tavolo-${tavolo.id}`}
     >
       {/* Nome tavolo */}
@@ -254,6 +222,7 @@ export default function Tavolo({
             value={tavolo.numero}
             onChange={e => onRename(e.target.value)}
             onClick={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
             style={{
               width: 40,
               border: '1px solid #ccc',
@@ -270,43 +239,11 @@ export default function Tavolo({
             value={tavolo.posti || 1}
             onChange={(e) => onUpdatePosti(Math.max(1, Number(e.target.value) || 1))}
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             style={{ width: 48, border: '1px solid #ccc', borderRadius: 4, padding: '2px 4px' }}
             data-testid={`posti-tavolo-${tavolo.id}`}
           />
-          <input
-            type="range"
-            min={0.025}
-            max={0.18}
-            step={0.005}
-            value={tavolo.dimensionePerc ?? 0.1}
-            onChange={(e) => onResize(clampDimension(parseFloat(e.target.value)))}
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: 76 }}
-            data-testid={`resize-slider-tavolo-${tavolo.id}`}
-          />
         </div>
-      )}
-
-      {editabile && selected && (
-        <button
-          type="button"
-          onPointerDown={handleResizePointerDown}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            right: -6,
-            bottom: -6,
-            width: 14,
-            height: 14,
-            borderRadius: 999,
-            border: '2px solid white',
-            background: '#2563eb',
-            cursor: 'nwse-resize',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
-          }}
-          data-testid={`resize-handle-tavolo-${tavolo.id}`}
-          aria-label={`Ridimensiona tavolo ${tavolo.numero}`}
-        />
       )}
     </div>
   )
