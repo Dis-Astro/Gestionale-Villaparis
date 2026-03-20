@@ -6,6 +6,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 ## Stato attuale
 **P0 deploy COMPLETATO:** installazione Proxmox confermata dall’utente.
 **P0 build production RIPRISTINATA:** errore Next.js su `/appuntamenti` risolto e build `npm run build` verificata con esito positivo.
+**FASE 3 reportistica COMPLETATA:** dashboard e report operativi reali con policy spam, export Excel/PDF e KPI su contatti/appuntamenti/interazioni/tempo.
 
 ## Ultimo aggiornamento (10-03-2026)
 - Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
@@ -83,9 +84,25 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - root cause: `useSearchParams()` era usato direttamente nel componente pagina client `src/app/(app)/appuntamenti/page.tsx`, quindi Next.js continuava a rilevare l’assenza del `Suspense boundary` durante il prerender
   - fix minimo applicato: estratta la logica in `AppuntamentiPageContent` e wrappata dal default export con `<Suspense>`
   - verifica eseguita: `npm run build` ✅
+- **FASE 3 reportistica operativa (20-03-2026) COMPLETATA**
+  - nuova logica condivisa `src/lib/report/operational.ts` con source of truth su `Cliente`, `Appuntamento`, `Evento`, `InterazioneCliente`
+  - `GET /api/report/stats` riscritto: supporta `period=week|month|year`, filtri `operatorId/source/status/spamMode` e restituisce KPI reali, trend, provenienze, operatori, clienti, attività
+  - `GET /api/report/azienda.xlsx` riscritto: export Excel multi-sheet coerente con i nuovi report operativi
+  - export PDF report aggiunto lato frontend (`src/lib/report/pdf.ts`)
+  - dashboard `/dashboard` estesa con filtri e KPI reali dalla reportistica FASE 3
+  - pagina `/report/azienda` sostituita con report operativo completo: filtri, policy spam, KPI cards, chart, tabelle operatori/clienti/attività
+  - policy spam robusta:
+    - settimanale: spam visibile ed evidenziato in rosso
+    - mensile/annuale: spam escluso da conteggi e liste principali
+  - sidebar resa completamente scorrevole su viewport bassi mantenendo pulsante `Nuovo Evento` e info utente sempre accessibili
+  - nessuna API mocked
 
 ## Validazione
+- Build produzione: `npm run build` ✅ (20-03-2026, FASE 3 inclusa)
 - Build produzione: `npm run build` ✅ (20-03-2026, fix `useSearchParams` su `/appuntamenti` verificato)
+- Smoke test API locale: login admin + `GET /api/report/stats` + `GET /api/report/azienda.xlsx` ✅
+- Smoke test UI locale: `/report/azienda` carica correttamente e sidebar scrollabile (`overflow-y:auto`) ✅
+- Testing Agent: `/app/test_reports/iteration_15.json` → FASE 3 report/dashboard/export/sidebar PASS ✅
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
@@ -102,12 +119,15 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
 - Nuove richieste operative menu/piantina/report implementate e validate.
+- Reportistica FASE 3 ora reale e utilizzabile operativamente senza mock.
+
+## Note tecniche di compatibilità
+- In ambiente preview locale, l’esecuzione manuale di `npm run build` rigenera temporaneamente Prisma sullo schema produzione (`schema.prisma`); per ripristinare il runtime dev (`schema.dev.prisma`) può essere necessario `sudo supervisorctl restart frontend` dopo il build. La build production resta comunque valida.
 
 ## Stack
 Next.js 15, React, TypeScript, Tailwind, shadcn/ui, Prisma, SQLite (dev) / PostgreSQL (prod), exceljs, pdfmake, recharts, FullCalendar, Docker.
 
 ## Backlog prioritizzato
-- **P0 (next)**: FASE 3 report settimanale/mensile/annuale completo (dashboard + Excel + PDF) con policy spam richiesta.
 - **P1**: Rendere la selezione menu base sempre disponibile anche in Modifica Evento con flusso guidato (non solo primo caricamento).
 - **P1**: Preset rapidi planimetria (layout standard matrimonio/comunione/compleanno).
 - **P2**: CRUD Clienti migliorato (filtri avanzati / UX).
