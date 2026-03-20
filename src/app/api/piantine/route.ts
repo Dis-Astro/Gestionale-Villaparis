@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import { NextRequest } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,7 +38,10 @@ function getList() {
 }
 
 // Restituisce l'elenco delle immagini disponibili in /public/planimetrie/
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const files = getList()
     return NextResponse.json(files)
@@ -46,7 +51,10 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     ensureDir()
     
@@ -83,7 +91,10 @@ export async function POST(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     ensureDir()
     const { searchParams } = new URL(req.url)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { actorFromHeaders, writeAuditLog } from '@/lib/audit'
+import { requireAuth } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,10 @@ function parseDate(value: any): Date | null {
 
 // GET /api/clienti          → lista tutti
 // GET /api/clienti?id=X     → dettaglio singolo
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
@@ -64,9 +68,17 @@ export async function GET(req: Request) {
 
 // POST /api/clienti → crea nuovo cliente
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const body = await req.json()
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
     if (!body.nome?.trim()) {
       return new NextResponse('Nome obbligatorio', { status: 400 })
     }
@@ -113,13 +125,21 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/clienti?id=X → aggiorna cliente
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = Number(searchParams.get('id'))
     if (!id) return new NextResponse('ID mancante', { status: 400 })
 
     const body = await req.json()
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
 
     const before = await prisma.cliente.findUnique({ where: { id } })
     if (!before) return new NextResponse('Cliente non trovato', { status: 404 })
@@ -171,12 +191,20 @@ export async function PUT(req: NextRequest) {
 
 // DELETE /api/clienti?id=X → elimina cliente
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = Number(searchParams.get('id'))
     if (!id) return new NextResponse('ID mancante', { status: 400 })
 
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
     const before = await prisma.cliente.findUnique({ where: { id } })
     if (!before) return new NextResponse('Cliente non trovato', { status: 404 })
 

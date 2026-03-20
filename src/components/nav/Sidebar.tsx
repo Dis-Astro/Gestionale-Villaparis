@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Calendar,
   Users,
@@ -22,65 +23,112 @@ interface SidebarProps {
   currentPath: string
 }
 
-const menuItems = [
+type Role = 'ADMIN' | 'REPORT' | 'WORKER'
+
+const menuItems: Array<{ label: string; href: string; icon: any; description: string; roles: Role[] }> = [
   {
     label: 'Dashboard',
     href: '/dashboard',
     icon: Home,
-    description: 'Panoramica generale'
+    description: 'Panoramica generale',
+    roles: ['ADMIN', 'REPORT']
   },
   {
     label: 'Calendario',
     href: '/calendario',
     icon: Calendar,
-    description: 'Eventi e prenotazioni'
+    description: 'Eventi e prenotazioni',
+    roles: ['ADMIN', 'REPORT', 'WORKER']
   },
   {
     label: 'Appuntamenti',
     href: '/appuntamenti',
     icon: Handshake,
-    description: 'Scheda centrale pre-evento'
+    description: 'Scheda centrale pre-evento',
+    roles: ['ADMIN', 'REPORT']
   },
   {
     label: 'Eventi',
     href: '/eventi',
     icon: LayoutGrid,
-    description: 'Gestione eventi'
+    description: 'Gestione eventi',
+    roles: ['ADMIN', 'REPORT', 'WORKER']
   },
   {
     label: 'Clienti',
     href: '/clienti',
     icon: Users,
-    description: 'Anagrafica clienti'
+    description: 'Anagrafica clienti',
+    roles: ['ADMIN', 'REPORT', 'WORKER']
   },
   {
     label: 'Menu Base',
     href: '/menu-base',
     icon: UtensilsCrossed,
-    description: 'Template menu'
+    description: 'Template menu',
+    roles: ['ADMIN', 'REPORT', 'WORKER']
   },
   {
     label: 'Report',
     href: '/report/azienda',
     icon: BarChart3,
-    description: 'Report e statistiche'
+    description: 'Report e statistiche',
+    roles: ['ADMIN', 'REPORT']
   },
   {
     label: 'Stampe',
     href: '/stampe',
     icon: FileText,
-    description: 'Documenti PDF'
+    description: 'Documenti PDF',
+    roles: ['ADMIN', 'REPORT', 'WORKER']
+  },
+  {
+    label: 'Audit Log',
+    href: '/audit',
+    icon: FileText,
+    description: 'Storico modifiche',
+    roles: ['ADMIN', 'REPORT']
+  },
+  {
+    label: 'Gestione Utenti',
+    href: '/utenti',
+    icon: Users,
+    description: 'Ruoli e accessi',
+    roles: ['ADMIN']
   },
   {
     label: 'Impostazioni',
     href: '/impostazioni',
     icon: Settings,
-    description: 'Configurazione'
+    description: 'Configurazione',
+    roles: ['ADMIN', 'REPORT']
   }
 ]
 
 export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) {
   const router = useRouter()
+  const [role, setRole] = useState<Role>('WORKER')
+  const [email, setEmail] = useState('')
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (!res.ok) return
+        const data = await res.json()
+        setRole(data.role)
+        setEmail(data.email)
+      } catch {
+        setRole('WORKER')
+      }
+    }
+    loadMe()
+  }, [])
+
+  const visibleMenu = useMemo(
+    () => menuItems.filter((item) => item.roles.includes(role)),
+    [role]
+  )
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return currentPath === '/' || currentPath === '/dashboard'
@@ -119,7 +167,7 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => {
+        {visibleMenu.map((item) => {
           const active = isActive(item.href)
           const Icon = item.icon
           
@@ -171,8 +219,8 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
             <Users className="w-5 h-5 text-slate-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Admin</p>
-            <p className="text-xs text-slate-400 truncate">Amministratore</p>
+            <p className="text-sm font-medium truncate">{email || 'Utente autenticato'}</p>
+            <p className="text-xs text-slate-400 truncate">{role}</p>
           </div>
         </div>
       </div>

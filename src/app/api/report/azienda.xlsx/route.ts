@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import prisma from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,7 +13,12 @@ export const dynamic = 'force-dynamic'
  *   Foglio 2 "Anagrafica Clienti": tutti i clienti con dati completi
  * Query params: from, to, tipo, luogo
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT'])
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
   try {
     const { searchParams } = new URL(req.url)
     const from  = searchParams.get('from')

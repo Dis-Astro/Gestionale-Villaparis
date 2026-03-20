@@ -10,7 +10,8 @@ import {
   Home,
   Calendar,
   Clock,
-  X
+  X,
+  LogOut
 } from 'lucide-react'
 
 interface TopbarProps {
@@ -24,9 +25,12 @@ const pathLabels: Record<string, string> = {
   '/calendario': 'Calendario',
   '/eventi': 'Eventi',
   '/clienti': 'Clienti',
+  '/appuntamenti': 'Appuntamenti',
   '/menu-base': 'Menu Base',
   '/report': 'Report',
   '/report/azienda': 'Report Azienda',
+  '/audit': 'Audit',
+  '/utenti': 'Gestione Utenti',
   '/stampe': 'Stampe',
   '/impostazioni': 'Impostazioni',
   '/nuovo-evento': 'Nuovo Evento',
@@ -152,6 +156,21 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [user, setUser] = useState<{ email: string; role: string } | null>(null)
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (!res.ok) return
+        const data = await res.json()
+        setUser(data)
+      } catch {
+        setUser(null)
+      }
+    }
+    loadMe()
+  }, [])
 
   // Build breadcrumb from pathname
   const buildBreadcrumb = () => {
@@ -269,10 +288,37 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           {/* Notifications */}
           <NotificheDropdown />
 
+          {/* Desktop user + logout */}
+          <div className="hidden lg:flex items-center gap-2 border-l pl-2 ml-1" data-testid="topbar-user-area">
+            <div className="text-right">
+              <p className="text-xs text-gray-700 truncate max-w-[180px]">{user?.email || 'utente'}</p>
+              <p className="text-[10px] text-gray-500">{user?.role || ''}</p>
+            </div>
+            <button
+              className="p-2 hover:bg-gray-100 rounded-lg"
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' })
+                router.push('/login')
+                router.refresh()
+              }}
+              data-testid="topbar-logout-btn"
+            >
+              <LogOut className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+
           {/* User avatar (mobile) */}
-          <button className="lg:hidden p-1">
+          <button
+            className="lg:hidden p-1"
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' })
+              router.push('/login')
+              router.refresh()
+            }}
+            data-testid="topbar-mobile-logout-btn"
+          >
             <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-white">A</span>
+              <span className="text-sm font-medium text-white">{(user?.email || 'U')[0].toUpperCase()}</span>
             </div>
           </button>
         </div>

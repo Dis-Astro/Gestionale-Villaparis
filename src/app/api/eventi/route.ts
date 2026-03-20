@@ -9,6 +9,7 @@ import {
 } from '@/lib/blocco-evento'
 import { actorFromHeaders, writeAuditLog } from '@/lib/audit'
 import { dbJsonParse, dbJsonSerialize } from '@/lib/db-json'
+import { requireAuth } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -55,9 +56,17 @@ async function resolveClientIds(clientiRaw: any[], fallbackCanale?: string | nul
 
 // CREA UN NUOVO EVENTO
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const body = await req.json()
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
     console.log('POST /api/eventi - body:', JSON.stringify(body).substring(0, 500))
     
     const clientiRaw = body.clienti || []
@@ -130,7 +139,10 @@ export async function POST(req: NextRequest) {
 }
 
 // RECUPERA TUTTI GLI EVENTI O UNO SINGOLO SE SPECIFICATO L'ID
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
@@ -195,13 +207,21 @@ export async function GET(req: Request) {
 
 // AGGIORNA UN EVENTO (con blocco -10 giorni)
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = Number(searchParams.get('id'))
     if (!id) return new NextResponse('ID mancante', { status: 400 })
 
     const body = await req.json()
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
 
     // Recupera evento esistente per verificare blocco
     const eventoEsistente = await prisma.evento.findUnique({
@@ -319,6 +339,9 @@ export async function PUT(req: NextRequest) {
 
 // ELIMINA UN EVENTO
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = Number(searchParams.get('id'))
@@ -327,7 +350,12 @@ export async function DELETE(req: NextRequest) {
       return new NextResponse('ID mancante', { status: 400 })
     }
 
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
     const before = await prisma.evento.findUnique({ where: { id } })
     if (!before) return new NextResponse('Evento non trovato', { status: 404 })
 

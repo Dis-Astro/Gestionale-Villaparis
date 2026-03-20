@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { dbJsonParse, dbJsonSerialize } from '@/lib/db-json'
 import { actorFromHeaders, writeAuditLog } from '@/lib/audit'
 import { computeExtraUnlock, computeScadenzaOpzione, normalizeStatoOpzione } from '@/lib/appuntamenti'
+import { requireAuth } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -62,6 +63,9 @@ async function resolveClienti(clientiPayload: any[], fallbackCanale?: string | n
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
@@ -135,9 +139,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const body = await req.json()
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
 
     const dataAppuntamento = toDateOrNull(body.dataAppuntamento)
     if (!dataAppuntamento) {
@@ -222,13 +234,21 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = Number(searchParams.get('id'))
     if (!id) return NextResponse.json({ error: 'ID appuntamento mancante' }, { status: 400 })
 
     const body = await req.json()
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
 
     const existing = await prisma.appuntamento.findUnique({
       where: { id },
@@ -315,11 +335,19 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   try {
     const { searchParams } = new URL(req.url)
     const id = Number(searchParams.get('id'))
     if (!id) return NextResponse.json({ error: 'ID appuntamento mancante' }, { status: 400 })
-    const actor = actorFromHeaders(req.headers)
+    const actor = {
+      ...actorFromHeaders(req.headers),
+      actorId: auth.user.id,
+      actorRole: auth.user.role,
+      actorEmail: auth.user.email
+    }
 
     const existing = await prisma.appuntamento.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Appuntamento non trovato' }, { status: 404 })
