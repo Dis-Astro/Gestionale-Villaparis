@@ -48,6 +48,10 @@ export default function DashboardPage() {
         // Fetch eventi
         const eventiRes = await fetch('/api/eventi')
         const eventi = await eventiRes.json()
+
+        // Fetch appuntamenti (nuovo dominio centrale pre-evento)
+        const appRes = await fetch('/api/appuntamenti')
+        const appuntamenti = await appRes.json()
         
         // Fetch clienti
         const clientiRes = await fetch('/api/clienti')
@@ -82,15 +86,15 @@ export default function DashboardPage() {
         const ospitiMese = eventiMese.reduce((sum: number, e: any) => sum + (e.personePreviste || 0), 0)
 
         // Statistiche appuntamenti
-        const appuntamentiMese = eventi.filter((e: any) => {
-          if (e.tipo !== 'Appuntamento' || !e.dataConfermata) return false
-          const d = new Date(e.dataConfermata)
+        const appuntamentiMese = (Array.isArray(appuntamenti) ? appuntamenti : []).filter((a: any) => {
+          if (!a.dataAppuntamento) return false
+          const d = new Date(a.dataAppuntamento)
           return d.getMonth() === currentMonth && d.getFullYear() === currentYear
         }).length
 
-        const appuntamentiAnno = eventi.filter((e: any) => {
-          if (e.tipo !== 'Appuntamento' || !e.dataConfermata) return false
-          const d = new Date(e.dataConfermata)
+        const appuntamentiAnno = (Array.isArray(appuntamenti) ? appuntamenti : []).filter((a: any) => {
+          if (!a.dataAppuntamento) return false
+          const d = new Date(a.dataAppuntamento)
           return d.getFullYear() === currentYear
         }).length
 

@@ -23,6 +23,12 @@ export async function GET(req: Request) {
         dataConfermata: {
           gte: startOfYear,
           lte: endOfYear
+        },
+        tipo: {
+          not: 'Appuntamento'
+        },
+        stato: {
+          not: 'annullato'
         }
       }
     })

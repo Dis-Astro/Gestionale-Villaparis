@@ -25,6 +25,14 @@ interface Cliente {
   canalePrimoContatto?: string
   dataPrimoContatto?: string
   notaAnagrafica?: string
+  isSpam?: boolean
+  spamReason?: string
+  spamMarkedAt?: string
+  statsPreEvento?: {
+    totaleAppuntamenti: number
+    tempoTotaleDedicatoMin: number
+    totaleInterazioni: number
+  }
   eventi: { id: number }[]
 }
 
@@ -42,7 +50,9 @@ const vuotoCliente = (): Omit<Cliente, 'id' | 'eventi'> => ({
   nome: '', cognome: '', email: '', telefono: '', telefonoAlt: '',
   indirizzo: '', cap: '', citta: '', dataNascita: '', codiceFiscale: '',
   tipoCliente: '', canalePrimoContatto: '', dataPrimoContatto: '',
-  notaAnagrafica: ''
+  notaAnagrafica: '',
+  isSpam: false,
+  spamReason: ''
 })
 
 const toDateInputValue = (value?: string) => {
@@ -74,7 +84,10 @@ function ClienteForm({
   const [errore, setErrore] = useState('')
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }))
+    setForm(f => ({
+      ...f,
+      [k]: e.target instanceof HTMLInputElement && e.target.type === 'checkbox' ? e.target.checked : e.target.value
+    }))
 
   const salva = async () => {
     if (!form.nome.trim()) { setErrore('Il nome è obbligatorio'); return }
@@ -189,6 +202,22 @@ function ClienteForm({
               </div>
               <div className="col-span-2">
                 <Field label="Data Primo Contatto" k="dataPrimoContatto" type="date" />
+              </div>
+              <div className="col-span-2 border rounded-lg p-3 bg-red-50" data-testid="cliente-spam-section">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-red-700">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.isSpam)}
+                    onChange={set('isSpam' as any)}
+                    data-testid="cliente-is-spam-checkbox"
+                  />
+                  Segna contatto come SPAM
+                </label>
+                {form.isSpam && (
+                  <div className="mt-2">
+                    <Field label="Motivo SPAM" k={('spamReason' as keyof typeof form)} />
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -384,7 +413,11 @@ export default function ClientiPage() {
                             {c.tipoCliente}
                           </span>
                         )}
-                        <span className="text-xs text-gray-400">{c.eventi.length} eventi</span>
+                    <span className="text-xs text-gray-400">{c.eventi.length} eventi</span>
+                    {c.statsPreEvento && (
+                      <span className="text-xs text-violet-500">· {c.statsPreEvento.totaleAppuntamenti} appunt.</span>
+                    )}
+                    {c.isSpam && <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">SPAM</span>}
                       </div>
                     </div>
                   </div>

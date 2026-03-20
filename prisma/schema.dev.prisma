@@ -28,12 +28,14 @@ model Evento {
   sposo            String?
   dataPrimoContatto    DateTime?
   canalePrimoContatto  String?
+  appuntamentoOrigineId Int?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   clienti          EventoCliente[]
   versioni         VersioneEvento[]
   overrideLogs     OverrideLog[]
+  appuntamentoOrigine Appuntamento? @relation("EventoDaAppuntamento", fields: [appuntamentoOrigineId], references: [id], onDelete: SetNull)
 }
 
 model VersioneEvento {
@@ -85,6 +87,9 @@ model Cliente {
   tipoCliente             String?
   canalePrimoContatto     String?
   dataPrimoContatto       DateTime?
+  isSpam                  Boolean          @default(false)
+  spamReason              String?
+  spamMarkedAt            DateTime?
   secondoContattoNome     String?
   secondoContattoTelefono String?
   secondoContattoEmail    String?
@@ -93,6 +98,111 @@ model Cliente {
   updatedAt               DateTime         @updatedAt
 
   eventi    EventoCliente[]
+  appuntamentiPrincipali Appuntamento[]    @relation("ClientePrincipaleAppuntamenti")
+  appuntamenti          AppuntamentoCliente[]
+  interazioni           InterazioneCliente[]
+}
+
+model User {
+  id           String               @id @default(cuid())
+  email        String               @unique
+  passwordHash String
+  role         String               @default("WORKER")
+  isActive     Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  appuntamentiGestiti Appuntamento[]      @relation("OperatoreAppuntamenti")
+  interazioniGestite  InterazioneCliente[]
+  auditLogs           AuditLog[]
+}
+
+model Appuntamento {
+  id                  Int                 @id @default(autoincrement())
+  clientePrincipaleId Int
+  clientePrincipale   Cliente             @relation("ClientePrincipaleAppuntamenti", fields: [clientePrincipaleId], references: [id], onDelete: Cascade)
+
+  dataAppuntamento    DateTime
+  durataMinuti        Int?                @default(0)
+  esito               String?
+  riassuntoColloquio  String?
+  noteColloquio       String?
+  numeroProgressivo   Int?
+  statoFunnel         String?             @default("in_trattativa")
+  datiMancanti        String?
+
+  dateOpzionate       String?
+  dataScadenzaOpzione DateTime?
+  extraUnlockFinoAl   DateTime?
+  statoOpzione        String?             @default("nessuna")
+
+  operatoreId         String?
+  operatore           User?               @relation("OperatoreAppuntamenti", fields: [operatoreId], references: [id], onDelete: SetNull)
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  clienti             AppuntamentoCliente[]
+  interazioni         InterazioneCliente[]
+  eventi              Evento[]            @relation("EventoDaAppuntamento")
+
+  @@index([clientePrincipaleId])
+  @@index([dataAppuntamento])
+  @@index([statoFunnel])
+}
+
+model AppuntamentoCliente {
+  id             Int          @id @default(autoincrement())
+  appuntamentoId Int
+  clienteId      Int
+  ruolo          String?
+
+  appuntamento   Appuntamento @relation(fields: [appuntamentoId], references: [id], onDelete: Cascade)
+  cliente        Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([appuntamentoId])
+  @@index([clienteId])
+  @@unique([appuntamentoId, clienteId])
+}
+
+model InterazioneCliente {
+  id               Int          @id @default(autoincrement())
+  clienteId        Int
+  appuntamentoId   Int?
+  tipo             String
+  durataMinuti     Int?         @default(0)
+  sintesi          String?
+  operatoreId      String?
+  dataInterazione  DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+
+  cliente          Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  appuntamento     Appuntamento? @relation(fields: [appuntamentoId], references: [id], onDelete: SetNull)
+  operatore        User?        @relation(fields: [operatoreId], references: [id], onDelete: SetNull)
+
+  @@index([clienteId])
+  @@index([appuntamentoId])
+  @@index([dataInterazione])
+}
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        String
+  changedFields String?
+  oldValue      String?
+  newValue      String?
+  actorId       String?
+  actorRole     String?
+  actorEmail    String?
+  metadata      String?
+  createdAt     DateTime  @default(now())
+
+  actor         User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 model EventoCliente {

@@ -45,6 +45,7 @@ function NuovoEventoContent() {
   const searchParams = useSearchParams()
   const dataIniziale = searchParams.get('data')
   const canaleIniziale = searchParams.get('canale') || ''
+  const appuntamentoId = searchParams.get('appuntamentoId')
   
   // Primo contatto: Sposa / Festeggiato
   const [cliente1, setCliente1] = useState({
@@ -103,6 +104,49 @@ function NuovoEventoContent() {
       .then((data) => setMenuBaseList(Array.isArray(data) ? data : []))
       .catch(() => setMenuBaseList([]))
   }, [])
+
+  useEffect(() => {
+    const prefillFromAppointment = async () => {
+      if (!appuntamentoId) return
+      try {
+        const res = await fetch(`/api/appuntamenti?id=${appuntamentoId}`)
+        if (!res.ok) return
+        const data = await res.json()
+
+        const principale = data.clientePrincipale
+        if (principale) {
+          setCliente1({
+            nome: principale.nome || '',
+            cognome: principale.cognome || '',
+            email: principale.email || '',
+            telefono: principale.telefono || ''
+          })
+          setCanalePrimoContatto(principale.canalePrimoContatto || canaleIniziale)
+        }
+
+        const secondario = Array.isArray(data.clienti)
+          ? data.clienti.map((c: any) => c.cliente).find((c: any) => c?.id && c.id !== principale?.id)
+          : null
+        if (secondario) {
+          setShowCliente2(true)
+          setCliente2({
+            nome: secondario.nome || '',
+            cognome: secondario.cognome || '',
+            email: secondario.email || '',
+            telefono: secondario.telefono || ''
+          })
+        }
+
+        if (Array.isArray(data.dateOpzionate) && data.dateOpzionate.length) {
+          setEvento((prev) => ({ ...prev, dateProposte: data.dateOpzionate }))
+        }
+      } catch {
+        // ignore prefill errors
+      }
+    }
+
+    prefillFromAppointment()
+  }, [appuntamentoId, canaleIniziale])
 
   const menuSelezionato = menuBaseList.find((m) => String(m.id) === menuBaseSelezionato)
   const prezzoBaseMenu = menuSelezionato ? getPrezzoDaStruttura(menuSelezionato.struttura) : null
@@ -200,6 +244,7 @@ function NuovoEventoContent() {
       ...evento,
       clienti,
       menu: menuPayload,
+      appuntamentoOrigineId: appuntamentoId ? Number(appuntamentoId) : null,
       canalePrimoContatto,
       prezzo: prezzoFinaleMenu ?? (evento.prezzo ? parseFloat(String(evento.prezzo)) : null),
       personePreviste: parseInt(evento.personePreviste || "0"),

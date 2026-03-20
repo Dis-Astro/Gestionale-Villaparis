@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import {
   calcolaInfoBlocco,
@@ -7,14 +7,57 @@ import {
   registraOverride,
   OVERRIDE_HEADERS
 } from '@/lib/blocco-evento'
+import { actorFromHeaders, writeAuditLog } from '@/lib/audit'
+import { dbJsonParse, dbJsonSerialize } from '@/lib/db-json'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const has = (obj: any, key: string) => Object.prototype.hasOwnProperty.call(obj, key)
+
+function parseDate(value: any): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+async function resolveClientIds(clientiRaw: any[], fallbackCanale?: string | null, fallbackData?: Date | null) {
+  const ids: number[] = []
+
+  for (const cr of clientiRaw || []) {
+    if (cr.id) {
+      ids.push(Number(cr.id))
+      continue
+    }
+    if (!cr.nome?.trim()) continue
+    const email = cr.email?.trim() || `${cr.nome.toLowerCase().replace(/\s+/g, '.')}@villa-paris.local`
+
+    let cliente = await prisma.cliente.findFirst({ where: { email } })
+    if (!cliente) {
+      cliente = await prisma.cliente.create({
+        data: {
+          nome: cr.nome.trim(),
+          cognome: cr.cognome?.trim() || null,
+          email,
+          telefono: cr.telefono?.trim() || null,
+          tipoCliente: cr.tipoCliente || null,
+          canalePrimoContatto: fallbackCanale || null,
+          dataPrimoContatto: parseDate(cr.dataPrimoContatto) || fallbackData || new Date()
+        }
+      })
+    }
+
+    ids.push(cliente.id)
+  }
+
+  return ids
+}
+
 // CREA UN NUOVO EVENTO
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+    const actor = actorFromHeaders(req.headers)
     console.log('POST /api/eventi - body:', JSON.stringify(body).substring(0, 500))
     
     const clientiRaw = body.clienti || []
@@ -23,55 +66,34 @@ export async function POST(req: Request) {
     }
 
     // Crea o trova tutti i clienti
-    const clienteIds: number[] = []
-    for (const cr of clientiRaw) {
-      if (!cr.nome?.trim()) continue
-      const email = cr.email?.trim() || `${cr.nome.toLowerCase().replace(/\s+/g, '.')}@villa-paris.local`
-      
-      let cliente = await prisma.cliente.findFirst({ where: { email } })
-      if (!cliente) {
-        cliente = await prisma.cliente.create({
-          data: {
-            nome: cr.nome.trim(),
-            cognome: cr.cognome?.trim() || null,
-            email,
-            telefono: cr.telefono?.trim() || null,
-            tipoCliente: cr.tipoCliente || null,
-            canalePrimoContatto: body.canalePrimoContatto || null,
-            dataPrimoContatto: cr.dataPrimoContatto
-              ? new Date(cr.dataPrimoContatto)
-              : body.dataPrimoContatto
-                ? new Date(body.dataPrimoContatto)
-                : new Date()
-          }
-        })
-      }
-      clienteIds.push(cliente.id)
-    }
-
-    const toJson = (v: any) => typeof v === 'string' ? v : JSON.stringify(v ?? null)
+    const clienteIds = await resolveClientIds(
+      clientiRaw,
+      body.canalePrimoContatto || null,
+      parseDate(body.dataPrimoContatto)
+    )
 
     const evento = await prisma.evento.create({
       data: {
         tipo: body.tipo,
         titolo: body.titolo,
-        dateProposte: toJson(body.dateProposte ?? []),
-        dataConfermata: body.dataConfermata ? new Date(body.dataConfermata) : null,
-        dataPrimoContatto: body.dataPrimoContatto ? new Date(body.dataPrimoContatto) : new Date(),
+        dateProposte: dbJsonSerialize(body.dateProposte ?? []),
+        dataConfermata: parseDate(body.dataConfermata),
+        dataPrimoContatto: parseDate(body.dataPrimoContatto) || new Date(),
         canalePrimoContatto: body.canalePrimoContatto || null,
         fascia: body.fascia,
         personePreviste: body.personePreviste ? parseInt(body.personePreviste) : null,
         note: body.note ?? '',
         stato: body.stato ?? 'in_attesa',
-        menu: toJson(body.menu || {}),
-        struttura: toJson(body.struttura || {}),
-        disposizioneSala: toJson(body.disposizioneSala),
+        menu: dbJsonSerialize(body.menu || {}),
+        struttura: dbJsonSerialize(body.struttura || {}),
+        disposizioneSala: dbJsonSerialize(body.disposizioneSala),
         luogo: body.luogo || null,
         prezzo: body.prezzo ? parseFloat(body.prezzo) : null,
         menuPasto: body.menuPasto || null,
         menuBuffet: body.menuBuffet || null,
         sposa: body.sposa || null,
         sposo: body.sposo || null,
+        appuntamentoOrigineId: body.appuntamentoOrigineId ? Number(body.appuntamentoOrigineId) : null,
         clienti: {
           create: clienteIds.map(id => ({ cliente: { connect: { id } } }))
         }
@@ -79,6 +101,24 @@ export async function POST(req: Request) {
       include: {
         clienti: { include: { cliente: true } }
       }
+    })
+
+    if (body.appuntamentoOrigineId) {
+      await prisma.appuntamento.update({
+        where: { id: Number(body.appuntamentoOrigineId) },
+        data: {
+          statoFunnel: 'confermato',
+          statoOpzione: 'confermata'
+        }
+      }).catch(() => null)
+    }
+
+    await writeAuditLog({
+      entityType: 'EVENT',
+      entityId: evento.id,
+      action: 'CREATE',
+      newValue: evento,
+      actor
     })
 
     console.log('POST /api/eventi - Evento creato ID:', evento.id, 'Clienti:', clienteIds.length)
@@ -101,6 +141,9 @@ export async function GET(req: Request) {
         include: {
           clienti: {
             include: { cliente: true }
+          },
+          appuntamentoOrigine: {
+            select: { id: true, dataAppuntamento: true, esito: true, statoFunnel: true }
           },
           versioni: {
             orderBy: { numero: 'desc' },
@@ -130,11 +173,20 @@ export async function GET(req: Request) {
       include: {
         clienti: {
           include: { cliente: true }
+        },
+        appuntamentoOrigine: {
+          select: { id: true, dataAppuntamento: true, esito: true, statoFunnel: true }
         }
       }
     })
 
-    return NextResponse.json(eventi)
+    return NextResponse.json(eventi.map((e) => ({
+      ...e,
+      dateProposte: dbJsonParse(e.dateProposte, []),
+      menu: dbJsonParse(e.menu, {}),
+      struttura: dbJsonParse(e.struttura, {}),
+      disposizioneSala: dbJsonParse(e.disposizioneSala, null)
+    })))
   } catch (error) {
     console.error('Errore nel recupero eventi:', error)
     return new NextResponse('Errore durante il recupero degli eventi', { status: 500 })
@@ -142,13 +194,14 @@ export async function GET(req: Request) {
 }
 
 // AGGIORNA UN EVENTO (con blocco -10 giorni)
-export async function PUT(req: Request) {
+export async function PUT(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const id = Number(searchParams.get('id'))
     if (!id) return new NextResponse('ID mancante', { status: 400 })
 
     const body = await req.json()
+    const actor = actorFromHeaders(req.headers)
 
     // Recupera evento esistente per verificare blocco
     const eventoEsistente = await prisma.evento.findUnique({
@@ -198,34 +251,62 @@ export async function PUT(req: Request) {
       console.log(`[OVERRIDE] Evento ${id} modificato con override: ${overrideResult.override!.motivo}`)
     }
 
-    // Log solo il necessario, non la base64
-    console.log('API DEBUG PUT - tavoli:', body.disposizioneSala?.tavoli?.length, 'stazioni:', body.disposizioneSala?.stazioni?.length)
-
-    const toJson = (v: any) => typeof v === 'string' ? v : JSON.stringify(v ?? null)
-
-    const evento = await prisma.evento.update({
+    const before = await prisma.evento.findUnique({
       where: { id },
-      data: {
-        tipo: body.tipo,
-        titolo: body.titolo,
-        dataConfermata: body.dataConfermata ? new Date(body.dataConfermata) : null,
-        fascia: body.fascia,
-        stato: body.stato,
-        personePreviste: body.personePreviste ? parseInt(body.personePreviste) : null,
-        note: body.note,
-        menu: toJson(body.menu),
-        struttura: toJson(body.struttura),
-        disposizioneSala: toJson(body.disposizioneSala),
-        dateProposte: toJson(body.dateProposte ?? []),
-        // Campi report aziendale
-        luogo: body.luogo || null,
-        prezzo: body.prezzo ? parseFloat(body.prezzo) : null,
-        menuPasto: body.menuPasto || null,
-        menuBuffet: body.menuBuffet || null,
-        sposa: body.sposa || null,
-        sposo: body.sposo || null,
-        dataPrimoContatto: body.dataPrimoContatto ? new Date(body.dataPrimoContatto) : undefined,
-        canalePrimoContatto: body.canalePrimoContatto !== undefined ? (body.canalePrimoContatto || null) : undefined
+      include: { clienti: { include: { cliente: true } } }
+    })
+    if (!before) return new NextResponse('Evento non trovato', { status: 404 })
+
+    const updateData: any = {}
+    if (has(body, 'tipo')) updateData.tipo = body.tipo
+    if (has(body, 'titolo')) updateData.titolo = body.titolo
+    if (has(body, 'dataConfermata')) updateData.dataConfermata = parseDate(body.dataConfermata)
+    if (has(body, 'fascia')) updateData.fascia = body.fascia
+    if (has(body, 'stato')) updateData.stato = body.stato
+    if (has(body, 'personePreviste')) updateData.personePreviste = body.personePreviste ? parseInt(body.personePreviste) : null
+    if (has(body, 'note')) updateData.note = body.note ?? ''
+    if (has(body, 'menu')) updateData.menu = dbJsonSerialize(body.menu)
+    if (has(body, 'struttura')) updateData.struttura = dbJsonSerialize(body.struttura)
+    if (has(body, 'disposizioneSala')) updateData.disposizioneSala = dbJsonSerialize(body.disposizioneSala)
+    if (has(body, 'dateProposte')) updateData.dateProposte = dbJsonSerialize(body.dateProposte ?? [])
+    if (has(body, 'luogo')) updateData.luogo = body.luogo || null
+    if (has(body, 'prezzo')) updateData.prezzo = body.prezzo ? parseFloat(body.prezzo) : null
+    if (has(body, 'menuPasto')) updateData.menuPasto = body.menuPasto || null
+    if (has(body, 'menuBuffet')) updateData.menuBuffet = body.menuBuffet || null
+    if (has(body, 'sposa')) updateData.sposa = body.sposa || null
+    if (has(body, 'sposo')) updateData.sposo = body.sposo || null
+    if (has(body, 'dataPrimoContatto')) updateData.dataPrimoContatto = parseDate(body.dataPrimoContatto)
+    if (has(body, 'canalePrimoContatto')) updateData.canalePrimoContatto = body.canalePrimoContatto || null
+    if (has(body, 'appuntamentoOrigineId')) updateData.appuntamentoOrigineId = body.appuntamentoOrigineId ? Number(body.appuntamentoOrigineId) : null
+
+    const evento = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(body.clienti)) {
+        const clienteIds = await resolveClientIds(
+          body.clienti,
+          has(body, 'canalePrimoContatto') ? body.canalePrimoContatto : before.canalePrimoContatto,
+          has(body, 'dataPrimoContatto') ? parseDate(body.dataPrimoContatto) : before.dataPrimoContatto
+        )
+        await tx.eventoCliente.deleteMany({ where: { eventoId: id } })
+        if (clienteIds.length) {
+          await tx.eventoCliente.createMany({
+            data: clienteIds.map((clienteId) => ({ eventoId: id, clienteId }))
+          })
+        }
+      }
+
+      return tx.evento.update({ where: { id }, data: updateData })
+    })
+
+    await writeAuditLog({
+      entityType: 'EVENT',
+      entityId: id,
+      action: 'UPDATE',
+      oldValue: before,
+      newValue: evento,
+      actor,
+      metadata: {
+        blockedFieldsModified: campiBloccatiModificati,
+        wasBlocked: infoBlocco.isBloccato
       }
     })
 
@@ -237,7 +318,7 @@ export async function PUT(req: Request) {
 }
 
 // ELIMINA UN EVENTO
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const id = Number(searchParams.get('id'))
@@ -246,8 +327,20 @@ export async function DELETE(req: Request) {
       return new NextResponse('ID mancante', { status: 400 })
     }
 
+    const actor = actorFromHeaders(req.headers)
+    const before = await prisma.evento.findUnique({ where: { id } })
+    if (!before) return new NextResponse('Evento non trovato', { status: 404 })
+
     await prisma.eventoCliente.deleteMany({ where: { eventoId: id } })
     const deleted = await prisma.evento.delete({ where: { id } })
+
+    await writeAuditLog({
+      entityType: 'EVENT',
+      entityId: id,
+      action: 'DELETE',
+      oldValue: before,
+      actor
+    })
 
     return NextResponse.json(deleted)
   } catch (error) {

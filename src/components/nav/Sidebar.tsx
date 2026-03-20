@@ -11,6 +11,7 @@ import {
   BarChart3,
   Settings,
   Home,
+  Handshake,
   X,
   ChevronRight
 } from 'lucide-react'
@@ -33,6 +34,12 @@ const menuItems = [
     href: '/calendario',
     icon: Calendar,
     description: 'Eventi e prenotazioni'
+  },
+  {
+    label: 'Appuntamenti',
+    href: '/appuntamenti',
+    icon: Handshake,
+    description: 'Scheda centrale pre-evento'
   },
   {
     label: 'Eventi',

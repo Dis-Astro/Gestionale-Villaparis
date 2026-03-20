@@ -21,6 +21,8 @@ export async function GET(req: Request) {
     const luogo = searchParams.get('luogo')
 
     const where: any = {}
+    where.stato = { not: 'annullato' }
+    where.tipo = { not: 'Appuntamento' }
     if (from || to) {
       where.dataConfermata = {}
       if (from) where.dataConfermata.gte = new Date(from)

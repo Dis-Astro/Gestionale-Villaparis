@@ -56,7 +56,7 @@ interface TooltipInfo {
 
 function EventTooltip({ info, onClose }: { info: TooltipInfo; onClose: () => void }) {
   const { evento, x, y, ruolo } = info
-  const cp = evento.clienti?.[0]?.cliente
+  const cp = evento.clienti?.[0]?.cliente || evento.clientePrincipale
   const col = colorePerTipo(evento.tipo, ruolo)
 
   // Posizionamento adattivo: non uscire dalla viewport
@@ -118,6 +118,7 @@ export default function CalendarioPage() {
   const [filtroVista, setFiltroVista] = useState('tutti')
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [eventi, setEventi] = useState<any[]>([])
+  const [appuntamenti, setAppuntamenti] = useState<any[]>([])
   const [eventiDelGiorno, setEventiDelGiorno] = useState<any[]>([])
   const [calendarKey, setCalendarKey] = useState(0)
 
@@ -133,28 +134,54 @@ export default function CalendarioPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [status, setStatus] = useState('')
 
-  const appuntamentiMese = eventi.filter(e => {
-    if (e.tipo !== 'Appuntamento') return false
-    const d = e.dataConfermata; if (!d) return false
+  const appuntamentiMese = appuntamenti.filter((a: any) => {
+    const d = a.dataAppuntamento?.split('T')[0]
+    if (!d) return false
     const dt = new Date(d); const now = new Date()
     return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear()
   }).length
 
+  const eventiPerData = useCallback((data: string) => {
+    const daEventi = eventi.filter(e =>
+      e.dataConfermata === data ||
+      e.dataPrimoContatto === data ||
+      (Array.isArray(e.dateProposte) && e.dateProposte.includes(data))
+    )
+
+    const daAppuntamenti = appuntamenti
+      .filter((a: any) => a.dataAppuntamento?.split('T')[0] === data)
+      .map((a: any) => ({
+        ...a,
+        tipo: 'Appuntamento',
+        titolo: a.riassuntoColloquio || `Appuntamento - ${a.clientePrincipale?.nome || ''}`,
+        dataConfermata: a.dataAppuntamento?.split('T')[0],
+        _isAppointment: true
+      }))
+
+    return [...daEventi, ...daAppuntamenti]
+  }, [eventi, appuntamenti])
+
   const fetchEventi = useCallback(() => {
-    fetch("/api/eventi")
-      .then(r => r.json())
-      .then(data => {
-        const parsed = data.map((ev: any) => ({
+    Promise.all([
+      fetch('/api/eventi').then(r => r.json()),
+      fetch('/api/appuntamenti').then(r => r.json()).catch(() => [])
+    ])
+      .then(([eventiData, appuntamentiData]) => {
+        const parsedEventi = (Array.isArray(eventiData) ? eventiData : []).map((ev: any) => ({
           ...ev,
-          dataConfermata: ev.dataConfermata?.split("T")[0] || null,
-          dataPrimoContatto: ev.dataPrimoContatto?.split("T")[0] || null,
+          dataConfermata: ev.dataConfermata?.split('T')[0] || null,
+          dataPrimoContatto: ev.dataPrimoContatto?.split('T')[0] || null,
           dateProposte: Array.isArray(ev.dateProposte)
             ? ev.dateProposte
             : (typeof ev.dateProposte === 'string' ? JSON.parse(ev.dateProposte || '[]') : [])
         }))
-        setEventi(parsed)
+        setEventi(parsedEventi)
+        setAppuntamenti(Array.isArray(appuntamentiData) ? appuntamentiData : [])
       })
-      .catch(() => {})
+      .catch(() => {
+        setEventi([])
+        setAppuntamenti([])
+      })
   }, [])
 
   useEffect(() => { fetchEventi() }, [fetchEventi, calendarKey])
@@ -167,17 +194,13 @@ export default function CalendarioPage() {
     const cal = calendarRef.current?.getApi()
     if (cal) cal.gotoDate(val)
 
-    setEventiDelGiorno(eventi.filter(e =>
-      e.dataConfermata === val ||
-      e.dataPrimoContatto === val ||
-      (Array.isArray(e.dateProposte) && e.dateProposte.includes(val))
-    ))
+    setEventiDelGiorno(eventiPerData(val))
     setShowAppuntamento(false)
-  }, [eventi])
+  }, [eventiPerData])
 
   const prossimoEvento = useMemo(() => {
     const now = new Date(`${todayIso}T00:00:00`).getTime()
-    const candidati = eventi
+    const candidatiEventi = eventi
       .filter((ev) => ev.stato !== 'annullato')
       .map((ev) => {
         const data = ev.dataConfermata || ev.dataPrimoContatto || ev.dateProposte?.[0]
@@ -189,12 +212,26 @@ export default function CalendarioPage() {
           diff: new Date(`${data}T00:00:00`).getTime() - now
         }
       })
+
+    const candidatiAppuntamenti = appuntamenti
+      .map((a: any) => {
+        const data = a.dataAppuntamento?.split('T')[0]
+        if (!data) return null
+        return {
+          id: a.id,
+          titolo: a.riassuntoColloquio || `Appuntamento - ${a.clientePrincipale?.nome || ''}`,
+          data,
+          diff: new Date(`${data}T00:00:00`).getTime() - now
+        }
+      })
+
+    const candidati = [...candidatiEventi, ...candidatiAppuntamenti]
       .filter((x): x is { id: number; titolo: string; data: string; diff: number } => Boolean(x))
       .filter(x => x.diff >= 0)
       .sort((a, b) => a.diff - b.diff)
 
     return candidati[0] || null
-  }, [eventi, todayIso])
+  }, [eventi, appuntamenti, todayIso])
 
   const risultatiRicerca = useMemo(() => {
     const q = ricercaEvento.trim().toLowerCase()
@@ -233,11 +270,7 @@ export default function CalendarioPage() {
   const handleDateClick = (arg: any) => {
     const data = arg.dateStr
     setDataSelezionata(data)
-    const evGiorno = eventi.filter(e =>
-      e.dataConfermata === data ||
-      e.dataPrimoContatto === data ||
-      (Array.isArray(e.dateProposte) && e.dateProposte.includes(data))
-    )
+    const evGiorno = eventiPerData(data)
     setEventiDelGiorno(evGiorno)
     if (evGiorno.length === 0) {
       setShowAppuntamento(true)
@@ -249,7 +282,7 @@ export default function CalendarioPage() {
   // ──────────────────────────────────────────────────
   // EVENTI FULLCALENDAR
   // ──────────────────────────────────────────────────
-  const eventiCalendario = eventi.flatMap((ev) => {
+  const eventiCalendarioEventi = eventi.flatMap((ev) => {
     if (ev.stato === 'annullato') return []
     const result: any[] = []
 
@@ -296,6 +329,30 @@ export default function CalendarioPage() {
     return result
   })
 
+  const eventiCalendarioAppuntamenti = appuntamenti.map((app: any) => {
+    const date = app.dataAppuntamento?.split('T')[0]
+    return {
+      id: `app-${app.id}`,
+      title: `📞 ${app.clientePrincipale?.nome || 'Appuntamento'}${app.clientePrincipale?.cognome ? ` ${app.clientePrincipale.cognome}` : ''}`,
+      date,
+      backgroundColor: COLORI.appuntamento.bg,
+      borderColor: COLORI.appuntamento.bg,
+      extendedProps: {
+        eventoId: app.id,
+        ruolo: 'appuntamento',
+        ev: {
+          ...app,
+          tipo: 'Appuntamento',
+          titolo: app.riassuntoColloquio || `Appuntamento - ${app.clientePrincipale?.nome || ''}`,
+          dataConfermata: date,
+          _isAppointment: true
+        }
+      }
+    }
+  })
+
+  const eventiCalendario = [...eventiCalendarioEventi, ...eventiCalendarioAppuntamenti]
+
   const eventiCalendarioFiltrati = useMemo(() => {
     if (filtroVista === 'tutti') return eventiCalendario
 
@@ -325,12 +382,17 @@ export default function CalendarioPage() {
   // Click singolo / doppio click
   const handleEventClick = (info: any) => {
     const eventoId = info.event.extendedProps.eventoId
+    const isAppointment = Boolean(info.event.extendedProps?.ev?._isAppointment)
     const now = Date.now()
     const last = lastClickRef.current
 
     if (last && last.id === eventoId && now - last.time < 400) {
       // Doppio click → apri scheda completa
-      router.push(`/modifica-evento/${eventoId}`)
+      if (isAppointment) {
+        router.push(`/appuntamenti?id=${eventoId}`)
+      } else {
+        router.push(`/modifica-evento/${eventoId}`)
+      }
       lastClickRef.current = null
     } else {
       lastClickRef.current = { id: eventoId, time: now }
@@ -340,11 +402,7 @@ export default function CalendarioPage() {
         const data = ev.dataConfermata || ev.dataPrimoContatto || ev.dateProposte?.[0]
         if (data) {
           setDataSelezionata(data)
-          setEventiDelGiorno(eventi.filter(e =>
-            e.dataConfermata === data ||
-            e.dataPrimoContatto === data ||
-            (Array.isArray(e.dateProposte) && e.dateProposte.includes(data))
-          ))
+          setEventiDelGiorno(eventiPerData(data))
         }
       }
     }
@@ -362,19 +420,17 @@ export default function CalendarioPage() {
     if (!appuntamento.nome.trim()) { setStatus('Inserisci il nome del cliente'); return }
     setIsSaving(true); setStatus('Salvataggio...')
     try {
-      const res = await fetch('/api/eventi', {
+      const res = await fetch('/api/appuntamenti', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tipo: 'Appuntamento',
-          titolo: `Appuntamento - ${appuntamento.nome}`,
-          dateProposte: [dataSelezionata],
-          dataConfermata: dataSelezionata,
-          dataPrimoContatto: dataSelezionata,
+          dataAppuntamento: `${dataSelezionata}T${appuntamento.ora || '10:00'}:00`,
+          durataMinuti: 60,
           canalePrimoContatto: appuntamento.canale || null,
-          fascia: 'pranzo',
-          stato: 'confermato',
-          note: `Ora: ${appuntamento.ora}\nTelefono: ${appuntamento.telefono}\n${appuntamento.note}`,
+          esito: 'da_fare',
+          statoFunnel: 'in_trattativa',
+          noteColloquio: `Telefono: ${appuntamento.telefono}\n${appuntamento.note}`,
+          riassuntoColloquio: appuntamento.note || `Appuntamento con ${appuntamento.nome}`,
           clienti: [{
             nome: appuntamento.nome,
             email: appuntamento.email || `${appuntamento.nome.toLowerCase().replace(/\s+/g, '.')}@villa-paris.local`,
@@ -396,6 +452,16 @@ export default function CalendarioPage() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stato: 'annullato' })
+    })
+    setCalendarKey(k => k + 1)
+  }
+
+  const annullaAppuntamento = async (id: number) => {
+    if (!confirm('Annullare questo appuntamento?')) return
+    await fetch(`/api/appuntamenti?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ esito: 'annullato' })
     })
     setCalendarKey(k => k + 1)
   }
@@ -702,18 +768,19 @@ export default function CalendarioPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {eventiDelGiorno.map((e) => {
+              const isAppointment = Boolean(e._isAppointment)
               const isReg = e.dataPrimoContatto === dataSelezionata && e.dataConfermata !== dataSelezionata
               const isOp  = Array.isArray(e.dateProposte) && e.dateProposte.includes(dataSelezionata) && e.dataConfermata !== dataSelezionata
-              const ruolo = isReg ? 'registrazione' : isOp ? 'opzionato' : e.tipo === 'Appuntamento' ? 'appuntamento' : 'confermato'
+              const ruolo = isReg ? 'registrazione' : isOp ? 'opzionato' : (e.tipo === 'Appuntamento' || isAppointment) ? 'appuntamento' : 'confermato'
               const dot   = colorePerTipo(e.tipo, ruolo)
-              const cp    = e.clienti?.[0]?.cliente
+              const cp    = e.clienti?.[0]?.cliente || e.clientePrincipale
               return (
                 <div key={`${e.id}-${ruolo}`} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="w-3 h-3 rounded-full mt-0.5 flex-shrink-0" style={{ backgroundColor: dot }} />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm text-gray-900 truncate">
-                        {isReg ? '📋 ' : e.tipo === 'Appuntamento' ? '📞 ' : ''}{e.titolo}
+                        {isReg ? '📋 ' : (e.tipo === 'Appuntamento' || isAppointment) ? '📞 ' : ''}{e.titolo}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="text-xs text-gray-500">{e.tipo}</span>
@@ -726,13 +793,18 @@ export default function CalendarioPage() {
                   </div>
                   <div className="flex items-center gap-1 ml-2">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statoLabel(e.stato)}`}>
-                      {e.stato?.replace('_', ' ')}
+                      {(isAppointment ? e.esito || 'da_fare' : e.stato)?.replace('_', ' ')}
                     </span>
-                    <Button variant="ghost" size="sm" className="w-7 h-7 p-0" onClick={() => router.push(`/modifica-evento/${e.id}`)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-7 h-7 p-0"
+                      onClick={() => router.push(isAppointment ? `/appuntamenti?id=${e.id}` : `/modifica-evento/${e.id}`)}
+                    >
                       <Edit className="w-3.5 h-3.5" />
                     </Button>
                     <Button variant="ghost" size="sm" className="w-7 h-7 p-0 text-red-400 hover:text-red-600"
-                      onClick={() => annullaEvento(e.id)}>
+                      onClick={() => isAppointment ? annullaAppuntamento(e.id) : annullaEvento(e.id)}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
