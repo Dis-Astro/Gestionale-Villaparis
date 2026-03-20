@@ -28,7 +28,7 @@ const pathLabels: Record<string, string> = {
   '/appuntamenti': 'Appuntamenti',
   '/menu-base': 'Menu Base',
   '/report': 'Report',
-  '/report/azienda': 'Report Azienda',
+  '/report/azienda': 'Report Operativo',
   '/audit': 'Audit',
   '/utenti': 'Gestione Utenti',
   '/stampe': 'Stampe',

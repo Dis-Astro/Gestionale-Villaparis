@@ -138,11 +138,12 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
   return (
     <aside
       className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white
+        fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col overflow-hidden bg-slate-900 text-white
         transform transition-transform duration-300 ease-in-out
         lg:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}
+      data-testid="sidebar-shell"
     >
       {/* Header */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-slate-700">
@@ -166,7 +167,7 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4 space-y-1" data-testid="sidebar-scroll-area">
         {visibleMenu.map((item) => {
           const active = isActive(item.href)
           const Icon = item.icon
@@ -199,7 +200,7 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
       </nav>
 
       {/* Quick actions */}
-      <div className="p-4 border-t border-slate-700">
+      <div className="shrink-0 border-t border-slate-700 p-4">
         <button
           onClick={() => {
             router.push('/nuovo-evento')
@@ -213,7 +214,7 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
       </div>
 
       {/* User info */}
-      <div className="p-4 border-t border-slate-700">
+      <div className="shrink-0 border-t border-slate-700 p-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
             <Users className="w-5 h-5 text-slate-400" />
