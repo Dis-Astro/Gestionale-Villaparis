@@ -1,12 +1,12 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Calendar, Clock, Plus, Save, Search, UserRound, ArrowRight } from 'lucide-react'
+import { Calendar, Plus, Save, Search, UserRound, ArrowRight } from 'lucide-react'
 
 type Appuntamento = any
 
@@ -21,7 +21,7 @@ function toInputDateTime(value?: string | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function AppuntamentiPageContent() {
+export default function AppuntamentiClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const focusId = searchParams.get('id')
@@ -354,13 +354,5 @@ function AppuntamentiPageContent() {
         </Card>
       </div>
     </div>
-  )
-}
-
-export default function AppuntamentiPage() {
-  return (
-    <Suspense fallback={<div className="space-y-6" data-testid="appuntamenti-page-loading">Caricamento appuntamenti...</div>}>
-      <AppuntamentiPageContent />
-    </Suspense>
   )
 }

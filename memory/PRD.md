@@ -5,6 +5,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 
 ## Stato attuale
 **P0 deploy COMPLETATO:** installazione Proxmox confermata dall’utente.
+**P0 build production RIPRISTINATA:** errore Next.js su `/appuntamenti` risolto e build `npm run build` verificata con esito positivo.
 
 ## Ultimo aggiornamento (10-03-2026)
 - Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
@@ -78,8 +79,13 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
     - WORKER: solo Calendario/Eventi/Clienti/Menu Base/Stampe
   - audit anche per operazioni utenti (`entityType=USER`)
   - seed admin iniziale confermato (`admin@villaparis.local / Admin123!`)
+- **FIX build production `/appuntamenti` (20-03-2026) COMPLETATO**
+  - root cause: `useSearchParams()` era usato direttamente nel componente pagina client `src/app/(app)/appuntamenti/page.tsx`, quindi Next.js continuava a rilevare l’assenza del `Suspense boundary` durante il prerender
+  - fix minimo applicato: estratta la logica in `AppuntamentiPageContent` e wrappata dal default export con `<Suspense>`
+  - verifica eseguita: `npm run build` ✅
 
 ## Validazione
+- Build produzione: `npm run build` ✅ (20-03-2026, fix `useSearchParams` su `/appuntamenti` verificato)
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
