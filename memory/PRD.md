@@ -59,6 +59,15 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Report Excel aggiornato:
   - colonna `Prezzo/Persona` aggiunta
   - fallback automatico a `struttura.prezzo` se `evento.prezzo` non presente
+- **FASE 1 flusso strutturale (20-03-2026) COMPLETATA**
+  - introdotte nuove entità dominio: `User`, `Appuntamento`, `AppuntamentoCliente`, `InterazioneCliente`, `AuditLog`
+  - nuovo flusso operativo: appuntamenti gestiti da API/page dedicate (`/api/appuntamenti`, `/appuntamenti`), non più creati come evento fittizio da calendario
+  - calendario aggiornato: creazione appuntamento via `/api/appuntamenti`, doppio click su appuntamento apre scheda appuntamento
+  - evento aggiornato con relazione opzionale `appuntamentoOrigineId` (conversione da appuntamento a evento)
+  - `PUT /api/eventi` riscritto patch-safe (niente azzeramenti su campi non inviati)
+  - audit backend attivo per `CLIENT`, `EVENT`, `APPOINTMENT` via `AuditLog` + endpoint `/api/audit`
+  - clienti estesi con gestione spam manuale (`isSpam`, `spamReason`, `spamMarkedAt`) + KPI pre-evento
+  - aggiunto script conservativo di backfill legacy: `scripts/backfill_appointments.js`
 
 ## Validazione
 - Test TypeScript: `npx tsc --noEmit` ✅
@@ -71,6 +80,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_11.json` → refinement UI preferiti + layout controlli PASS ✅
 - Smoke test Playwright locale: card schema preferiti compatta e senza elementi ridondanti ✅
 - Testing Agent: `/app/test_reports/iteration_12.json` → card schema preferiti ultra-semplificata PASS ✅
+- Testing Agent: `/app/test_reports/iteration_13.json` → FASE 1 flusso appuntamenti + patch-safe + audit PASS ✅
 
 ## Stato funzionalità applicative
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
@@ -80,6 +90,8 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 Next.js 15, React, TypeScript, Tailwind, shadcn/ui, Prisma, SQLite (dev) / PostgreSQL (prod), exceljs, pdfmake, recharts, FullCalendar, Docker.
 
 ## Backlog prioritizzato
+- **P0 (next)**: FASE 2 auth JWT + ruoli (Admin/Report/Worker), protezione route/API, sidebar role-based.
+- **P1 (next)**: FASE 3 report settimanale/mensile/annuale completo (dashboard + Excel + PDF) con policy spam richiesta.
 - **P1**: Rendere la selezione menu base sempre disponibile anche in Modifica Evento con flusso guidato (non solo primo caricamento).
 - **P1**: Preset rapidi planimetria (layout standard matrimonio/comunione/compleanno).
 - **P2**: CRUD Clienti migliorato (filtri avanzati / UX).
