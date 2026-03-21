@@ -69,10 +69,17 @@ const menuItems: Array<{ label: string; href: string; icon: any; description: st
     roles: ['ADMIN', 'REPORT', 'WORKER']
   },
   {
-    label: 'Report',
+    label: 'Report Operativo',
     href: '/report/azienda',
     icon: BarChart3,
-    description: 'Report e statistiche',
+    description: 'Contatti, appuntamenti e funnel',
+    roles: ['ADMIN', 'REPORT']
+  },
+  {
+    label: 'Report Eventi',
+    href: '/report/eventi',
+    icon: FileText,
+    description: 'Storico eventi ed export',
     roles: ['ADMIN', 'REPORT']
   },
   {

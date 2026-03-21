@@ -31,7 +31,7 @@ const COLORI: Record<string, { bg: string; label: string }> = {
 }
 
 function colorePerTipo(tipo: string, ruolo: string): string {
-  if (ruolo === 'registrazione') return COLORI.registrazione.bg
+  if (ruolo === 'registrazione' || ruolo === 'registrazione-cliente') return COLORI.registrazione.bg
   if (ruolo === 'opzionato')     return COLORI.opzionato.bg
   if (ruolo === 'appuntamento')  return COLORI.appuntamento.bg
   const t = tipo.toLowerCase()
@@ -76,11 +76,14 @@ function EventTooltip({ info, onClose }: { info: TooltipInfo; onClose: () => voi
         <span className="font-semibold text-sm text-gray-900 truncate">{evento.titolo}</span>
       </div>
       <div className="space-y-1 text-xs text-gray-600">
-        {ruolo !== 'registrazione' && (
+        {ruolo !== 'registrazione' && ruolo !== 'registrazione-cliente' && (
           <p><span className="font-medium">Tipo:</span> {evento.tipo}</p>
         )}
-        {ruolo === 'registrazione' && (
+        {(ruolo === 'registrazione' || ruolo === 'registrazione-cliente') && (
           <p className="text-amber-700 font-medium">📋 Registrazione 1° contatto</p>
+        )}
+        {evento.canalePrimoContatto && (ruolo === 'registrazione' || ruolo === 'registrazione-cliente') && (
+          <p><span className="font-medium">Provenienza:</span> {evento.canalePrimoContatto}</p>
         )}
         {ruolo === 'opzionato' && (
           <p className="text-amber-600 font-medium">⏳ Data opzionata</p>
@@ -101,7 +104,7 @@ function EventTooltip({ info, onClose }: { info: TooltipInfo; onClose: () => voi
           <p><span className="font-medium">Stato:</span> {evento.stato.replace('_', ' ')}</p>
         )}
       </div>
-      <p className="text-xs text-gray-400 mt-2 border-t pt-1">Doppio click per aprire scheda completa</p>
+      <p className="text-xs text-gray-400 mt-2 border-t pt-1">{ruolo === 'registrazione-cliente' ? 'Doppio click per aprire anagrafica clienti' : 'Doppio click per aprire scheda completa'}</p>
     </div>
   )
 }
@@ -119,6 +122,7 @@ export default function CalendarioPage() {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [eventi, setEventi] = useState<any[]>([])
   const [appuntamenti, setAppuntamenti] = useState<any[]>([])
+  const [primiContatti, setPrimiContatti] = useState<any[]>([])
   const [eventiDelGiorno, setEventiDelGiorno] = useState<any[]>([])
   const [calendarKey, setCalendarKey] = useState(0)
 
@@ -148,6 +152,8 @@ export default function CalendarioPage() {
       (Array.isArray(e.dateProposte) && e.dateProposte.includes(data))
     )
 
+    const daPrimiContatti = primiContatti.filter((cliente: any) => cliente.dataPrimoContatto === data)
+
     const daAppuntamenti = appuntamenti
       .filter((a: any) => a.dataAppuntamento?.split('T')[0] === data)
       .map((a: any) => ({
@@ -158,15 +164,16 @@ export default function CalendarioPage() {
         _isAppointment: true
       }))
 
-    return [...daEventi, ...daAppuntamenti]
-  }, [eventi, appuntamenti])
+    return [...daEventi, ...daPrimiContatti, ...daAppuntamenti]
+  }, [eventi, primiContatti, appuntamenti])
 
   const fetchEventi = useCallback(() => {
     Promise.all([
       fetch('/api/eventi').then(r => r.json()),
-      fetch('/api/appuntamenti').then(r => r.json()).catch(() => [])
+      fetch('/api/appuntamenti').then(r => r.json()).catch(() => []),
+      fetch('/api/clienti').then(r => r.json()).catch(() => [])
     ])
-      .then(([eventiData, appuntamentiData]) => {
+      .then(([eventiData, appuntamentiData, clientiData]) => {
         const parsedEventi = (Array.isArray(eventiData) ? eventiData : []).map((ev: any) => ({
           ...ev,
           dataConfermata: ev.dataConfermata?.split('T')[0] || null,
@@ -175,12 +182,35 @@ export default function CalendarioPage() {
             ? ev.dateProposte
             : (typeof ev.dateProposte === 'string' ? JSON.parse(ev.dateProposte || '[]') : [])
         }))
+        const registrazioniEvento = new Set(
+          parsedEventi.flatMap((ev: any) => (
+            ev.dataPrimoContatto
+              ? (Array.isArray(ev.clienti) ? ev.clienti.map((entry: any) => `${entry.cliente?.id || entry.clienteId}-${ev.dataPrimoContatto}`) : [])
+              : []
+          ))
+        )
+
+        const parsedPrimiContatti = (Array.isArray(clientiData) ? clientiData : [])
+          .map((cliente: any) => ({
+            ...cliente,
+            tipo: 'Primo contatto',
+            titolo: [cliente.nome, cliente.cognome].filter(Boolean).join(' ').trim() || 'Primo contatto',
+            dataPrimoContatto: cliente.dataPrimoContatto?.split('T')[0] || null,
+            clientePrincipale: cliente,
+            _isFirstContact: true,
+            stato: cliente.isSpam ? 'spam' : 'registrato'
+          }))
+          .filter((cliente: any) => cliente.dataPrimoContatto)
+          .filter((cliente: any) => !registrazioniEvento.has(`${cliente.id}-${cliente.dataPrimoContatto}`))
+
         setEventi(parsedEventi)
         setAppuntamenti(Array.isArray(appuntamentiData) ? appuntamentiData : [])
+        setPrimiContatti(parsedPrimiContatti)
       })
       .catch(() => {
         setEventi([])
         setAppuntamenti([])
+        setPrimiContatti([])
       })
   }, [])
 
@@ -237,7 +267,7 @@ export default function CalendarioPage() {
     const q = ricercaEvento.trim().toLowerCase()
     if (q.length < 2) return []
 
-    return eventi
+    const daEventi = eventi
       .map((ev) => {
         const cliente = ev.clienti?.[0]?.cliente
         const nomeCliente = [cliente?.nome, cliente?.cognome].filter(Boolean).join(' ').trim()
@@ -250,10 +280,19 @@ export default function CalendarioPage() {
           search: `${ev.titolo || ''} ${nomeCliente}`.toLowerCase()
         }
       })
+    const daPrimiContatti = primiContatti.map((cliente: any) => ({
+      id: cliente.id,
+      titolo: `Primo contatto - ${cliente.titolo}`,
+      nomeCliente: cliente.titolo,
+      data: cliente.dataPrimoContatto || '',
+      search: `${cliente.titolo || ''} ${cliente.canalePrimoContatto || ''}`.toLowerCase()
+    }))
+
+    return [...daEventi, ...daPrimiContatti]
       .filter((row) => row.data && row.search.includes(q))
       .sort((a, b) => a.data.localeCompare(b.data))
       .slice(0, 8)
-  }, [eventi, ricercaEvento])
+  }, [eventi, primiContatti, ricercaEvento])
 
   const aggiungiGiorni = useCallback((isoDate: string, days: number) => {
     const d = new Date(`${isoDate}T00:00:00`)
@@ -351,7 +390,16 @@ export default function CalendarioPage() {
     }
   })
 
-  const eventiCalendario = [...eventiCalendarioEventi, ...eventiCalendarioAppuntamenti]
+  const eventiCalendarioPrimiContatti = primiContatti.map((cliente: any) => ({
+    id: `contact-${cliente.id}-${cliente.dataPrimoContatto}`,
+    title: `📋 ${cliente.titolo}`,
+    date: cliente.dataPrimoContatto,
+    backgroundColor: COLORI.registrazione.bg,
+    borderColor: COLORI.registrazione.bg,
+    extendedProps: { eventoId: cliente.id, ruolo: 'registrazione-cliente', ev: cliente }
+  }))
+
+  const eventiCalendario = [...eventiCalendarioEventi, ...eventiCalendarioPrimiContatti, ...eventiCalendarioAppuntamenti]
 
   const eventiCalendarioFiltrati = useMemo(() => {
     if (filtroVista === 'tutti') return eventiCalendario
@@ -361,6 +409,7 @@ export default function CalendarioPage() {
       if (filtroVista === 'confermati') return ruolo === 'confermato'
       if (filtroVista === 'opzionati') return ruolo === 'opzionato'
       if (filtroVista === 'appuntamenti') return ruolo === 'appuntamento'
+      if (filtroVista === 'primi-contatti') return ruolo === 'registrazione' || ruolo === 'registrazione-cliente'
       return true
     })
   }, [eventiCalendario, filtroVista])
@@ -383,6 +432,7 @@ export default function CalendarioPage() {
   const handleEventClick = (info: any) => {
     const eventoId = info.event.extendedProps.eventoId
     const isAppointment = Boolean(info.event.extendedProps?.ev?._isAppointment)
+    const isFirstContact = info.event.extendedProps?.ruolo === 'registrazione-cliente'
     const now = Date.now()
     const last = lastClickRef.current
 
@@ -390,6 +440,8 @@ export default function CalendarioPage() {
       // Doppio click → apri scheda completa
       if (isAppointment) {
         router.push(`/appuntamenti?id=${eventoId}`)
+      } else if (isFirstContact) {
+        router.push('/clienti')
       } else {
         router.push(`/modifica-evento/${eventoId}`)
       }
@@ -602,7 +654,8 @@ export default function CalendarioPage() {
                 { id: 'tutti', label: 'Tutti' },
                 { id: 'confermati', label: 'Confermati' },
                 { id: 'opzionati', label: 'Opzionati' },
-                { id: 'appuntamenti', label: 'Appuntamenti' }
+                { id: 'appuntamenti', label: 'Appuntamenti' },
+                { id: 'primi-contatti', label: 'Primi contatti' }
               ].map((f) => (
                 <button
                   key={f.id}
@@ -769,11 +822,12 @@ export default function CalendarioPage() {
           <CardContent className="space-y-2">
             {eventiDelGiorno.map((e) => {
               const isAppointment = Boolean(e._isAppointment)
-              const isReg = e.dataPrimoContatto === dataSelezionata && e.dataConfermata !== dataSelezionata
+              const isFirstContact = Boolean(e._isFirstContact)
+              const isReg = isFirstContact || (e.dataPrimoContatto === dataSelezionata && e.dataConfermata !== dataSelezionata)
               const isOp  = Array.isArray(e.dateProposte) && e.dateProposte.includes(dataSelezionata) && e.dataConfermata !== dataSelezionata
               const ruolo = isReg ? 'registrazione' : isOp ? 'opzionato' : (e.tipo === 'Appuntamento' || isAppointment) ? 'appuntamento' : 'confermato'
               const dot   = colorePerTipo(e.tipo, ruolo)
-              const cp    = e.clienti?.[0]?.cliente || e.clientePrincipale
+              const cp    = isFirstContact ? e.clientePrincipale : (e.clienti?.[0]?.cliente || e.clientePrincipale)
               return (
                 <div key={`${e.id}-${ruolo}`} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -783,30 +837,33 @@ export default function CalendarioPage() {
                         {isReg ? '📋 ' : (e.tipo === 'Appuntamento' || isAppointment) ? '📞 ' : ''}{e.titolo}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-xs text-gray-500">{e.tipo}</span>
+                        <span className="text-xs text-gray-500">{isFirstContact ? 'Primo contatto' : e.tipo}</span>
                         {isReg && <span className="text-xs bg-amber-900/10 text-amber-800 px-1.5 py-0.5 rounded-full">1° contatto</span>}
                         {isOp  && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">opzionato</span>}
                         {e.personePreviste > 0 && <span className="text-xs text-gray-400">{e.personePreviste} ospiti</span>}
+                        {isFirstContact && e.canalePrimoContatto && <span className="text-xs text-gray-400">{e.canalePrimoContatto}</span>}
                         {cp?.telefono && <span className="text-xs text-gray-400">{cp.telefono}</span>}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 ml-2">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statoLabel(e.stato)}`}>
-                      {(isAppointment ? e.esito || 'da_fare' : e.stato)?.replace('_', ' ')}
+                      {(isFirstContact ? e.canalePrimoContatto || 'primo contatto' : (isAppointment ? e.esito || 'da_fare' : e.stato))?.replace('_', ' ')}
                     </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="w-7 h-7 p-0"
-                      onClick={() => router.push(isAppointment ? `/appuntamenti?id=${e.id}` : `/modifica-evento/${e.id}`)}
+                      onClick={() => router.push(isAppointment ? `/appuntamenti?id=${e.id}` : isFirstContact ? '/clienti' : `/modifica-evento/${e.id}`)}
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="w-7 h-7 p-0 text-red-400 hover:text-red-600"
-                      onClick={() => isAppointment ? annullaAppuntamento(e.id) : annullaEvento(e.id)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {!isFirstContact && (
+                      <Button variant="ghost" size="sm" className="w-7 h-7 p-0 text-red-400 hover:text-red-600"
+                        onClick={() => isAppointment ? annullaAppuntamento(e.id) : annullaEvento(e.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               )
