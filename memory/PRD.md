@@ -7,6 +7,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 **P0 deploy COMPLETATO:** installazione Proxmox confermata dall’utente.
 **P0 build production RIPRISTINATA:** errore Next.js su `/appuntamenti` risolto e build `npm run build` verificata con esito positivo.
 **FASE 3 reportistica COMPLETATA:** dashboard e report operativi reali con policy spam, export Excel/PDF e KPI su contatti/appuntamenti/interazioni/tempo.
+**HOTFIX post FASE 3 COMPLETATO:** report eventi storico ripristinato come modulo separato e primo contatto reso visibile nel calendario come voce dedicata.
 
 ## Ultimo aggiornamento (10-03-2026)
 - Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
@@ -96,6 +97,12 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
     - mensile/annuale: spam escluso da conteggi e liste principali
   - sidebar resa completamente scorrevole su viewport bassi mantenendo pulsante `Nuovo Evento` e info utente sempre accessibili
   - nessuna API mocked
+- **HOTFIX post FASE 3 (21-03-2026) COMPLETATO**
+  - root cause report eventi scomparso: la FASE 3 aveva sovrascritto `src/app/(app)/report/azienda/page.tsx`, `src/app/api/report/stats/route.ts` e `src/app/api/report/azienda.xlsx/route.ts` invece di affiancare il nuovo report operativo al report eventi storico
+  - fix minimo applicato: il report operativo è rimasto su `/report/azienda`; ripristinato il modulo storico eventi separato su `/report/eventi` con API dedicate `GET /api/report/eventi/stats` e `GET /api/report/eventi.xlsx`
+  - menu aggiornato in modo conservativo con due voci distinte: `Report Operativo` e `Report Eventi`
+  - root cause primo contatto mancante in calendario: il calendario leggeva solo `/api/eventi` + `/api/appuntamenti` e si basava su `Evento.dataPrimoContatto`; i primi contatti presenti solo in `Cliente.dataPrimoContatto` senza evento collegato non entravano nel feed calendario
+  - fix minimo applicato: aggiunto feed dedicato da `/api/clienti` dentro `calendario/page.tsx`, deduplicato rispetto agli eventi che hanno già la stessa registrazione primo contatto, mantenendo separazione visiva tra primo contatto / appuntamento / evento
 
 ## Validazione
 - Build produzione: `npm run build` ✅ (20-03-2026, FASE 3 inclusa)
@@ -103,6 +110,10 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Smoke test API locale: login admin + `GET /api/report/stats` + `GET /api/report/azienda.xlsx` ✅
 - Smoke test UI locale: `/report/azienda` carica correttamente e sidebar scrollabile (`overflow-y:auto`) ✅
 - Testing Agent: `/app/test_reports/iteration_15.json` → FASE 3 report/dashboard/export/sidebar PASS ✅
+- Build produzione hotfix: `npm run build` ✅ (21-03-2026)
+- Testing Agent: `/app/test_reports/iteration_16.json` → coesistenza Report Operativo + Report Eventi + Primo contatto nel calendario PASS ✅
+- Auto frontend smoke: hotfix report/calendario PASS ✅
+- Deep backend smoke: hotfix report/eventi/clienti PASS ✅
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
@@ -120,6 +131,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Bug critici precedenti corretti: modifica eventi, date in modifica, creazione bozze/versioni, PDF clienti, notifiche.
 - Nuove richieste operative menu/piantina/report implementate e validate.
 - Reportistica FASE 3 ora reale e utilizzabile operativamente senza mock.
+- Hotfix report/calendario validato: report operativo intatto, report eventi storico nuovamente disponibile, primo contatto visibile nel calendario senza eventi fittizi.
 
 ## Note tecniche di compatibilità
 - In ambiente preview locale, l’esecuzione manuale di `npm run build` rigenera temporaneamente Prisma sullo schema produzione (`schema.prisma`); per ripristinare il runtime dev (`schema.dev.prisma`) può essere necessario `sudo supervisorctl restart frontend` dopo il build. La build production resta comunque valida.
