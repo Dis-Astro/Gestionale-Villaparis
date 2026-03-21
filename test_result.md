@@ -87,6 +87,78 @@ backend:
         agent: "testing"
         comment: "✅ PASSED: All critical FASE 3 endpoints (/api/auth/me, /api/report/stats for all periods, /api/eventi) return proper status codes with no 500 errors detected."
 
+  - task: "Hotfix: GET /api/report/stats operational reports continue working"
+    implemented: true
+    working: true
+    file: "/app/src/app/api/report/stats/route.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: All periods (week/month/year) return 200 with complete payload structure including meta, summary, sources, operators, trend, clients, and activities. Operational reports working correctly."
+
+  - task: "Hotfix: GET /api/report/azienda.xlsx operational Excel export continues working"
+    implemented: true
+    working: true
+    file: "/app/src/app/api/report/azienda.xlsx/route.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: Returns valid xlsx file (17275 bytes) with correct content-type (spreadsheetml), content-disposition headers, and valid Excel format (PK zip magic bytes). Operational Excel export working correctly."
+
+  - task: "Hotfix: GET /api/report/eventi/stats historical events reports working"
+    implemented: true
+    working: true
+    file: "/app/src/app/api/report/eventi/stats/route.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: Returns 200 with complete payload structure including year, monthly (12 months), byTipo, and totals (eventiTotali, ospitiTotali, ricaviTotali, ticketMedio). Historical events stats working correctly for years 2025 and 2026."
+
+  - task: "Hotfix: GET /api/report/eventi.xlsx historical events Excel export working"
+    implemented: true
+    working: true
+    file: "/app/src/app/api/report/eventi.xlsx/route.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: Returns valid xlsx file (20497 bytes) with correct content-type (spreadsheetml), content-disposition headers, and valid Excel format (PK zip magic bytes). Historical events Excel export working correctly."
+
+  - task: "Hotfix: GET /api/clienti exposes dataPrimoContatto for calendar"
+    implemented: true
+    working: true
+    file: "/app/src/app/api/clienti/route.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: Returns 200 with list of 117 clients. All clients have dataPrimoContatto field, 115/117 have valid dates. Calendar integration data available for first contact functionality."
+
+  - task: "Hotfix: No 500 errors or auth regressions on hotfix routes"
+    implemented: true
+    working: true
+    file: "N/A"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: All hotfix routes (/api/report/stats, /api/report/eventi/stats, /api/clienti) return proper status codes with no 500 errors. Unauthorized access properly blocked with 401. No auth regressions detected."
+
 ## Frontend Tasks
 
 frontend:
@@ -217,11 +289,12 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Hotfix: Sidebar shows both Report Operativo and Report Eventi as separate entries"
-    - "Hotfix: /report/azienda continues to work unchanged"
-    - "Hotfix: /report/eventi loads historical events module correctly"
-    - "Hotfix: /calendario shows Primi contatti view/filter and first contact as distinct entry"
-    - "Hotfix: No blank pages or blocking console errors"
+    - "Hotfix: GET /api/report/stats operational reports continue working"
+    - "Hotfix: GET /api/report/azienda.xlsx operational Excel export continues working"
+    - "Hotfix: GET /api/report/eventi/stats historical events reports working"
+    - "Hotfix: GET /api/report/eventi.xlsx historical events Excel export working"
+    - "Hotfix: GET /api/clienti exposes dataPrimoContatto for calendar"
+    - "Hotfix: No 500 errors or auth regressions on hotfix routes"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -235,3 +308,5 @@ agent_communication:
     message: "✅ BACKEND VERIFICATION COMPLETE - All 7 critical backend verification points passed successfully: 1) Login API returns 200 with valid session, 2) Auth/me returns correct user data, 3) Report stats API works for all periods with proper payload structure, 4) Spam policy logic correctly implemented (week includes, month/year exclude), 5) Excel export returns valid xlsx file, 6) APIs properly protected with 401 for unauthorized access, 7) No 500 errors on any FASE 3 endpoints. Backend FASE 3 is STABLE."
   - agent: "testing"
     message: "🎉 HOTFIX VILLA PARIS VERIFICATION COMPLETE - All 5 target points verified successfully: 1) Sidebar shows both 'Report Operativo' and 'Report Eventi' as separate entries (✅ /report/azienda and /report/eventi links present), 2) /report/azienda continues to work unchanged with hero, exports, filters, policy banner, KPI cards, and charts (✅ 23 card elements found), 3) /report/eventi loads historical events module correctly with title, description, Excel download, filters (year/date/type/location), KPI cards, charts, and preview table (✅ all components visible), 4) /calendario shows 'Primi contatti' filter button and functionality working correctly with legend showing 'Registrazione 1° contatto' and 10 first contact events with 📋 icon visible (✅ filter switching works), 5) No blank pages or blocking console errors detected (✅ 0 blocking errors, 0 critical failed requests). Hotfix is PRODUCTION READY."
+  - agent: "testing"
+    message: "🎯 VILLA PARIS HOTFIX BACKEND VERIFICATION COMPLETE - All 6 backend verification points passed successfully: 1) GET /api/report/stats continues to work for operational reports (✅ all periods return 200 with complete payload), 2) GET /api/report/azienda.xlsx continues to work for operational reports (✅ valid 17275 byte xlsx file), 3) GET /api/report/eventi/stats works for historical events reports (✅ complete payload with monthly/totals data), 4) GET /api/report/eventi.xlsx works for historical events export (✅ valid 20497 byte xlsx file), 5) GET /api/clienti exposes dataPrimoContatto for calendar (✅ 115/117 clients with valid dates), 6) No 500 errors or auth regressions on hotfix routes (✅ all endpoints return proper status codes, unauthorized access blocked). HOTFIX BACKEND IS PRODUCTION READY."
