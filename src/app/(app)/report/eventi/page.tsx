@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {
   Download,
   FileSpreadsheet,
+  FileText,
   Filter,
   TrendingUp,
   Users,
@@ -30,6 +31,7 @@ import {
   Cell,
   Legend
 } from 'recharts'
+import { downloadEventReportPdf, EventReportFilters, filterHistoricEvents } from '@/lib/report/eventi-pdf'
 
 interface MonthlyData {
   mese: string
@@ -63,7 +65,8 @@ const COLORS = ['#1E3A5F', '#D4AF37', '#22C55E', '#3B82F6', '#A855F7', '#EF4444'
 export default function ReportEventiPage() {
   const [stats, setStats] = useState<ReportStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [downloading, setDownloading] = useState(false)
+  const [downloadingExcel, setDownloadingExcel] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [year, setYear] = useState(new Date().getFullYear())
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -90,7 +93,7 @@ export default function ReportEventiPage() {
   }, [year])
 
   const handleDownloadExcel = async () => {
-    setDownloading(true)
+    setDownloadingExcel(true)
     setDownloadError('')
     try {
       const params = new URLSearchParams()
@@ -117,7 +120,33 @@ export default function ReportEventiPage() {
     } catch (error) {
       setDownloadError(`Errore export eventi: ${error}`)
     } finally {
-      setDownloading(false)
+      setDownloadingExcel(false)
+    }
+  }
+
+  const handleDownloadPdf = async () => {
+    if (!stats) return
+    setDownloadingPdf(true)
+    setDownloadError('')
+    try {
+      const res = await fetch('/api/eventi')
+      if (!res.ok) {
+        throw new Error(`Errore ${res.status}`)
+      }
+      const eventi = await res.json()
+      const filters: EventReportFilters = {
+        year,
+        dateFrom,
+        dateTo,
+        tipoFilter,
+        luogoFilter
+      }
+      const filteredEvents = filterHistoricEvents(eventi, filters)
+      downloadEventReportPdf(stats, filteredEvents, filters)
+    } catch (error) {
+      setDownloadError(`Errore export PDF eventi: ${error}`)
+    } finally {
+      setDownloadingPdf(false)
     }
   }
 
@@ -152,15 +181,26 @@ export default function ReportEventiPage() {
           <h1 className="text-2xl font-bold text-gray-900" data-testid="report-eventi-title">Report Eventi</h1>
           <p className="text-gray-500" data-testid="report-eventi-description">Storico eventi, anagrafiche clienti collegate, dettagli evento ed export storico.</p>
         </div>
-        <Button
-          onClick={handleDownloadExcel}
-          disabled={downloading}
-          className="bg-green-600 hover:bg-green-700"
-          data-testid="report-eventi-download-excel-button"
-        >
-          <FileSpreadsheet className="w-4 h-4 mr-2" />
-          {downloading ? 'Download...' : 'Scarica Excel'}
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            onClick={handleDownloadExcel}
+            disabled={downloadingExcel}
+            className="bg-green-600 hover:bg-green-700"
+            data-testid="report-eventi-download-excel-button"
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            {downloadingExcel ? 'Download Excel...' : 'Scarica Excel'}
+          </Button>
+          <Button
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf || !stats}
+            className="bg-slate-900 hover:bg-slate-800"
+            data-testid="report-eventi-download-pdf-button"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            {downloadingPdf ? 'Export PDF...' : 'Scarica PDF'}
+          </Button>
+        </div>
       </div>
 
       {downloadError && (
@@ -245,7 +285,7 @@ export default function ReportEventiPage() {
       <Card data-testid="report-eventi-preview-card">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Anteprima dati eventi</CardTitle>
-          <Button variant="outline" onClick={handleDownloadExcel} disabled={downloading} data-testid="report-eventi-preview-download-button">
+          <Button variant="outline" onClick={handleDownloadExcel} disabled={downloadingExcel} data-testid="report-eventi-preview-download-button">
             <Download className="w-4 h-4 mr-2" />Download Excel
           </Button>
         </CardHeader>
