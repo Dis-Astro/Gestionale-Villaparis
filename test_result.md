@@ -159,6 +159,18 @@ backend:
         agent: "testing"
         comment: "✅ PASSED: All hotfix routes (/api/report/stats, /api/report/eventi/stats, /api/clienti) return proper status codes with no 500 errors. Unauthorized access properly blocked with 401. No auth regressions detected."
 
+  - task: "PDF Eventi Backend Final Verification"
+    implemented: true
+    working: true
+    file: "/app/pdf_eventi_backend_test.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: PDF Eventi backend verification complete - all 3 targets verified successfully: TARGET 1 ✅ No regression on GET /api/report/stats (all periods: week/month/year return 200 with complete structure) and GET /api/report/azienda.xlsx (valid 17272 byte Excel file with correct headers). TARGET 2 ✅ No regression on GET /api/report/eventi/stats (years 2025/2026 return 200 with complete eventi structure including monthly/totals) and GET /api/report/eventi.xlsx (valid 22304 byte Excel file). TARGET 3 ✅ No 500/auth issues on report routes - all endpoints return proper status codes (200), unauthorized access properly blocked with 401. PDF eventi frontend addition caused ZERO backend regressions."
+
 ## Frontend Tasks
 
 frontend:
@@ -315,3 +327,5 @@ agent_communication:
     message: "🎯 VILLA PARIS HOTFIX BACKEND VERIFICATION COMPLETE - All 6 backend verification points passed successfully: 1) GET /api/report/stats continues to work for operational reports (✅ all periods return 200 with complete payload), 2) GET /api/report/azienda.xlsx continues to work for operational reports (✅ valid 17275 byte xlsx file), 3) GET /api/report/eventi/stats works for historical events reports (✅ complete payload with monthly/totals data), 4) GET /api/report/eventi.xlsx works for historical events export (✅ valid 20497 byte xlsx file), 5) GET /api/clienti exposes dataPrimoContatto for calendar (✅ 115/117 clients with valid dates), 6) No 500 errors or auth regressions on hotfix routes (✅ all endpoints return proper status codes, unauthorized access blocked). HOTFIX BACKEND IS PRODUCTION READY."
   - agent: "testing"
     message: "🎯 PDF EVENTI FEATURE FINAL VERIFICATION COMPLETE - All 4 review targets verified successfully on http://127.0.0.1:3000: TARGET 1 ✅ /report/eventi shows both 'Scarica Excel' (green button) and 'Scarica PDF' (black button) - both visible and enabled. TARGET 2 ✅ Clicking 'Scarica PDF' does NOT break the page - page remains functional after click, no error messages displayed, all buttons still work, zero console errors. TARGET 3 ✅ /report/azienda remains intact and functional - 'Export Excel' and 'Export PDF' buttons visible in hero section, filters present, 23 cards found, all functionality preserved. TARGET 4 ✅ Sidebar shows both 'Report Operativo' and 'Report Eventi' entries on both /report/eventi and /report/azienda pages. PDF generation implemented using pdfmake library with /api/eventi endpoint (GET method returns all events with clienti relations). Feature is PRODUCTION READY with zero regressions."
+  - agent: "testing"
+    message: "🎯 PDF EVENTI BACKEND FINAL VERIFICATION COMPLETE - All 3 backend targets verified successfully using credentials admin@villaparis.local / Admin123! on http://127.0.0.1:3000: TARGET 1 ✅ No regression on GET /api/report/stats (all periods week/month/year return 200 with complete payload structure) and GET /api/report/azienda.xlsx (valid 17272 byte Excel file with correct content-type and headers). TARGET 2 ✅ No regression on GET /api/report/eventi/stats (years 2025/2026 return 200 with complete eventi structure including monthly data and totals) and GET /api/report/eventi.xlsx (valid 22304 byte Excel file with proper format). TARGET 3 ✅ No 500/auth issues on any report routes - all endpoints return proper 200 status codes when authenticated, unauthorized access properly blocked with 401. PDF eventi frontend-only addition caused ZERO backend regressions. Backend APIs remain fully functional and stable."
