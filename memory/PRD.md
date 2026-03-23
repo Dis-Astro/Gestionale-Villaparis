@@ -8,6 +8,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 **P0 build production RIPRISTINATA:** errore Next.js su `/appuntamenti` risolto e build `npm run build` verificata con esito positivo.
 **FASE 3 reportistica COMPLETATA:** dashboard e report operativi reali con policy spam, export Excel/PDF e KPI su contatti/appuntamenti/interazioni/tempo.
 **HOTFIX post FASE 3 COMPLETATO:** report eventi storico ripristinato come modulo separato e primo contatto reso visibile nel calendario come voce dedicata.
+**STEP PDF report eventi COMPLETATO:** aggiunto export/stampa PDF dedicato al solo modulo `/report/eventi`, lasciando isolato il report operativo.
 
 ## Ultimo aggiornamento (10-03-2026)
 - Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
@@ -103,6 +104,12 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - menu aggiornato in modo conservativo con due voci distinte: `Report Operativo` e `Report Eventi`
   - root cause primo contatto mancante in calendario: il calendario leggeva solo `/api/eventi` + `/api/appuntamenti` e si basava su `Evento.dataPrimoContatto`; i primi contatti presenti solo in `Cliente.dataPrimoContatto` senza evento collegato non entravano nel feed calendario
   - fix minimo applicato: aggiunto feed dedicato da `/api/clienti` dentro `calendario/page.tsx`, deduplicato rispetto agli eventi che hanno già la stessa registrazione primo contatto, mantenendo separazione visiva tra primo contatto / appuntamento / evento
+- **PDF dedicato report eventi (23-03-2026) COMPLETATO**
+  - nessuna modifica al report operativo `/report/azienda`
+  - aggiunto bottone `Scarica PDF` solo su `/report/eventi`
+  - implementato helper client-side `src/lib/report/eventi-pdf.ts` con pdfmake
+  - il PDF include: filtri applicati, KPI eventi, andamento mensile, distribuzione per tipo, elenco eventi filtrati, dettaglio evento, anagrafiche clienti collegate, struttura pronta per stampa reale
+  - nessuna API report esistente modificata in questo step
 
 ## Validazione
 - Build produzione: `npm run build` ✅ (20-03-2026, FASE 3 inclusa)
@@ -114,6 +121,10 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_16.json` → coesistenza Report Operativo + Report Eventi + Primo contatto nel calendario PASS ✅
 - Auto frontend smoke: hotfix report/calendario PASS ✅
 - Deep backend smoke: hotfix report/eventi/clienti PASS ✅
+- Build produzione PDF eventi: `npm run build` ✅ (23-03-2026)
+- Testing Agent: `/app/test_reports/iteration_17.json` → `Scarica PDF` su `/report/eventi` PASS e `/report/azienda` intatto ✅
+- Auto frontend smoke: PDF eventi + isolamento report operativo PASS ✅
+- Deep backend smoke: nessuna regressione sulle route report PASS ✅
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
@@ -132,6 +143,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Nuove richieste operative menu/piantina/report implementate e validate.
 - Reportistica FASE 3 ora reale e utilizzabile operativamente senza mock.
 - Hotfix report/calendario validato: report operativo intatto, report eventi storico nuovamente disponibile, primo contatto visibile nel calendario senza eventi fittizi.
+- Report eventi storico ora dispone anche di export/stampa PDF dedicato senza impattare il report operativo.
 
 ## Note tecniche di compatibilità
 - In ambiente preview locale, l’esecuzione manuale di `npm run build` rigenera temporaneamente Prisma sullo schema produzione (`schema.prisma`); per ripristinare il runtime dev (`schema.dev.prisma`) può essere necessario `sudo supervisorctl restart frontend` dopo il build. La build production resta comunque valida.
