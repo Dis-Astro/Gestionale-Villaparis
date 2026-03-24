@@ -14,7 +14,9 @@ type UserItem = {
 
 export default function UtentiPage() {
   const [users, setUsers] = useState<UserItem[]>([])
+  const [currentUserId, setCurrentUserId] = useState('')
   const [status, setStatus] = useState('')
+  const [deletingId, setDeletingId] = useState('')
   const [form, setForm] = useState({ email: '', password: '', role: 'WORKER' as UserItem['role'] })
 
   const fetchUsers = async () => {
@@ -25,6 +27,13 @@ export default function UtentiPage() {
   }
 
   useEffect(() => {
+    const loadMe = async () => {
+      const res = await fetch('/api/auth/me')
+      if (!res.ok) return
+      const data = await res.json()
+      setCurrentUserId(data.id || '')
+    }
+    loadMe()
     fetchUsers()
   }, [])
 
@@ -59,11 +68,32 @@ export default function UtentiPage() {
     fetchUsers()
   }
 
+  const deleteUser = async (u: UserItem) => {
+    const confirmed = window.confirm(`Eliminare definitivamente l'account ${u.email}?`)
+    if (!confirmed) return
+
+    setDeletingId(u.id)
+    const res = await fetch('/api/users', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: u.id })
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setStatus(`❌ ${data.error || 'Errore eliminazione utente'}`)
+      setDeletingId('')
+      return
+    }
+    setStatus('✅ Utente eliminato')
+    setDeletingId('')
+    fetchUsers()
+  }
+
   return (
     <div className="space-y-6" data-testid="utenti-page">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Gestione Utenti</h1>
-        <p className="text-sm text-gray-500">Solo Admin: creazione, attivazione, ruolo e reset password.</p>
+        <p className="text-sm text-gray-500">Solo Admin: creazione, attivazione, ruolo, reset password ed eliminazione account con protezioni.</p>
       </div>
 
       {status && <div className="px-3 py-2 rounded bg-amber-50 text-amber-700 text-sm" data-testid="utenti-status">{status}</div>}
@@ -121,6 +151,17 @@ export default function UtentiPage() {
                   data-testid={`user-reset-password-${u.id}`}
                 >
                   Reset password
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-200 text-red-700 hover:bg-red-50"
+                  onClick={() => deleteUser(u)}
+                  disabled={deletingId === u.id || currentUserId === u.id}
+                  data-testid={`user-delete-${u.id}`}
+                  title={currentUserId === u.id ? 'Non puoi eliminare il tuo account loggato' : 'Elimina account'}
+                >
+                  {deletingId === u.id ? 'Eliminazione...' : 'Elimina'}
                 </Button>
               </div>
             </div>

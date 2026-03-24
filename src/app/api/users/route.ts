@@ -127,3 +127,67 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Errore aggiornamento utente' }, { status: 500 })
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req, ['ADMIN'])
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  try {
+    const body = await req.json()
+    const id = body.id
+    if (!id) return NextResponse.json({ error: 'ID utente mancante' }, { status: 400 })
+    if (id === auth.user.id) {
+      return NextResponse.json({ error: 'Non puoi eliminare il tuo account mentre sei loggato' }, { status: 400 })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            appuntamentiGestiti: true,
+            interazioniGestite: true,
+            auditLogs: true,
+            presenzeRegistrate: true
+          }
+        }
+      }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'Utente non trovato' }, { status: 404 })
+    }
+
+    if (user.role === 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } })
+      if (adminCount <= 1) {
+        return NextResponse.json({ error: 'Non puoi eliminare l’ultimo Admin' }, { status: 400 })
+      }
+    }
+
+    const linkedRecords = user._count.appuntamentiGestiti + user._count.interazioniGestite + user._count.auditLogs + user._count.presenzeRegistrate
+    if (linkedRecords > 0) {
+      return NextResponse.json({ error: 'Utente con dati collegati: usa Disattiva invece di Elimina' }, { status: 409 })
+    }
+
+    await prisma.user.delete({ where: { id } })
+
+    await writeAuditLog({
+      entityType: 'USER',
+      entityId: id,
+      action: 'DELETE',
+      oldValue: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive
+      },
+      actor: { actorId: auth.user.id, actorRole: auth.user.role, actorEmail: auth.user.email }
+    })
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('Errore DELETE users:', error)
+    return NextResponse.json({ error: 'Errore eliminazione utente' }, { status: 500 })
+  }
+}
