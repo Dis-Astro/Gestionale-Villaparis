@@ -10,6 +10,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 **HOTFIX post FASE 3 COMPLETATO:** report eventi storico ripristinato come modulo separato e primo contatto reso visibile nel calendario come voce dedicata.
 **STEP PDF report eventi COMPLETATO:** aggiunto export/stampa PDF dedicato al solo modulo `/report/eventi`, lasciando isolato il report operativo.
 **STEP login/reminder/rapportini COMPLETATO:** login admin verificato, reminder operativo sulle opzioni a 2 mesi aggiunto e nuovo modulo `Rapportini Interni` disponibile per Worker/Admin/Report.
+**STEP delete account COMPLETATO:** Gestione Utenti ora supporta l’eliminazione account con protezioni conservative lato Admin.
 
 ## Ultimo aggiornamento (10-03-2026)
 - Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
@@ -120,6 +121,15 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - Admin/Report: vista giornaliera o settimanale, elenco completo e stampa/PDF
   - campi supportati: `Nome`, `Cognome`, `Azienda`, `orarioIngresso`, `orarioUscita`, `motivoVisita`, `mansioneSvolta`, `note`
   - nuova API `GET/POST/DELETE /api/presenze-villa`
+- **Delete account in Gestione Utenti (24-03-2026) COMPLETATO**
+  - aggiunto pulsante `Elimina` nella pagina `/utenti`
+  - azione disponibile solo ad Admin
+  - protezioni attive:
+    - blocco eliminazione del proprio account loggato
+    - blocco eliminazione dell’ultimo Admin
+    - blocco eliminazione utenti con dati collegati (messaggio: usare `Disattiva`)
+  - audit log della cancellazione account riuscita
+  - nessuna regressione su creazione utente, cambio ruolo, reset password, attiva/disattiva
 
 ## Validazione
 - Build produzione: `npm run build` ✅ (20-03-2026, FASE 3 inclusa)
@@ -139,6 +149,8 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_18.json` → login + rapportini + reminder + isolamento report PASS con soli issue bassi transienti poi stabilizzati via restart frontend ✅
 - Auto frontend smoke: login admin + rapportini + report operativo intatto PASS ✅
 - Deep backend smoke: login/admin + presenze-villa + eventi/report PASS ✅
+- Build produzione delete account: `npm run build` ✅ (24-03-2026)
+- Testing Agent: `/app/test_reports/iteration_19.json` → delete account PASS, protezioni PASS, nessuna regressione utenti/report ✅
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
@@ -159,6 +171,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Hotfix report/calendario validato: report operativo intatto, report eventi storico nuovamente disponibile, primo contatto visibile nel calendario senza eventi fittizi.
 - Report eventi storico ora dispone anche di export/stampa PDF dedicato senza impattare il report operativo.
 - Login admin verificato operativo; reminder app opzioni aggiunto; Worker/Admin dispongono ora del modulo rapportini interni.
+- Gestione Utenti ora include eliminazione account con salvaguardie conservative.
 
 ## Note tecniche di compatibilità
 - In ambiente preview locale, l’esecuzione manuale di `npm run build` rigenera temporaneamente Prisma sullo schema produzione (`schema.prisma`); per ripristinare il runtime dev (`schema.dev.prisma`) può essere necessario `sudo supervisorctl restart frontend` dopo il build. La build production resta comunque valida.
