@@ -75,7 +75,9 @@ export function verifyToken(token: string): AuthTokenPayload | null {
     const expected = b64url(createHmac('sha256', getJwtSecret()).update(data).digest())
     if (expected !== s) return null
 
-    const payload = JSON.parse(b64urlDecode(p)) as AuthTokenPayload
+    const raw = b64urlDecode(p)
+    const bytes = Uint8Array.from(raw, (char) => char.charCodeAt(0))
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as AuthTokenPayload
     const now = Math.floor(Date.now() / 1000)
     if (payload.exp <= now) return null
     return payload

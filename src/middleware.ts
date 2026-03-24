@@ -9,7 +9,9 @@ function decodePayload(token: string): any | null {
     const payload = parts[1]
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=')
     const raw = atob(base64)
-    return JSON.parse(raw)
+    const bytes = Uint8Array.from(raw, (char) => char.charCodeAt(0))
+    const decoded = new TextDecoder().decode(bytes)
+    return JSON.parse(decoded)
   } catch {
     return null
   }
