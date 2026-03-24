@@ -9,6 +9,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 **FASE 3 reportistica COMPLETATA:** dashboard e report operativi reali con policy spam, export Excel/PDF e KPI su contatti/appuntamenti/interazioni/tempo.
 **HOTFIX post FASE 3 COMPLETATO:** report eventi storico ripristinato come modulo separato e primo contatto reso visibile nel calendario come voce dedicata.
 **STEP PDF report eventi COMPLETATO:** aggiunto export/stampa PDF dedicato al solo modulo `/report/eventi`, lasciando isolato il report operativo.
+**STEP login/reminder/rapportini COMPLETATO:** login admin verificato, reminder operativo sulle opzioni a 2 mesi aggiunto e nuovo modulo `Rapportini Interni` disponibile per Worker/Admin/Report.
 
 ## Ultimo aggiornamento (10-03-2026)
 - Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
@@ -110,6 +111,15 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
   - implementato helper client-side `src/lib/report/eventi-pdf.ts` con pdfmake
   - il PDF include: filtri applicati, KPI eventi, andamento mensile, distribuzione per tipo, elenco eventi filtrati, dettaglio evento, anagrafiche clienti collegate, struttura pronta per stampa reale
   - nessuna API report esistente modificata in questo step
+- **Login / reminder / rapportini interni (24-03-2026) COMPLETATO**
+  - login admin verificato funzionante con `admin@villaparis.local / Admin123!`
+  - reminder 2 mesi: era già presente la **scadenza automatica** delle date opzionate; mancava il **promemoria operativo**
+  - aggiunti reminder in Topbar notifiche e nella pagina `/appuntamenti` per opzioni scadute o in scadenza
+  - introdotto nuovo modulo `/rapportini-interni` con accesso da menu per `WORKER`, `ADMIN`, `REPORT`
+  - Worker: inserimento giornaliero presenze in Villa con data corrente di default
+  - Admin/Report: vista giornaliera o settimanale, elenco completo e stampa/PDF
+  - campi supportati: `Nome`, `Cognome`, `Azienda`, `orarioIngresso`, `orarioUscita`, `motivoVisita`, `mansioneSvolta`, `note`
+  - nuova API `GET/POST/DELETE /api/presenze-villa`
 
 ## Validazione
 - Build produzione: `npm run build` ✅ (20-03-2026, FASE 3 inclusa)
@@ -125,6 +135,10 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Testing Agent: `/app/test_reports/iteration_17.json` → `Scarica PDF` su `/report/eventi` PASS e `/report/azienda` intatto ✅
 - Auto frontend smoke: PDF eventi + isolamento report operativo PASS ✅
 - Deep backend smoke: nessuna regressione sulle route report PASS ✅
+- Build produzione login/reminder/rapportini: `npm run build` ✅ (24-03-2026)
+- Testing Agent: `/app/test_reports/iteration_18.json` → login + rapportini + reminder + isolamento report PASS con soli issue bassi transienti poi stabilizzati via restart frontend ✅
+- Auto frontend smoke: login admin + rapportini + report operativo intatto PASS ✅
+- Deep backend smoke: login/admin + presenze-villa + eventi/report PASS ✅
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
@@ -144,9 +158,11 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Reportistica FASE 3 ora reale e utilizzabile operativamente senza mock.
 - Hotfix report/calendario validato: report operativo intatto, report eventi storico nuovamente disponibile, primo contatto visibile nel calendario senza eventi fittizi.
 - Report eventi storico ora dispone anche di export/stampa PDF dedicato senza impattare il report operativo.
+- Login admin verificato operativo; reminder app opzioni aggiunto; Worker/Admin dispongono ora del modulo rapportini interni.
 
 ## Note tecniche di compatibilità
 - In ambiente preview locale, l’esecuzione manuale di `npm run build` rigenera temporaneamente Prisma sullo schema produzione (`schema.prisma`); per ripristinare il runtime dev (`schema.dev.prisma`) può essere necessario `sudo supervisorctl restart frontend` dopo il build. La build production resta comunque valida.
+- Nel runtime dev di Next.js può comparire in modo transiente un problema di manifest loading dopo build/hot-reload; un restart frontend riallinea il servizio e stabilizza le route API.
 
 ## Stack
 Next.js 15, React, TypeScript, Tailwind, shadcn/ui, Prisma, SQLite (dev) / PostgreSQL (prod), exceljs, pdfmake, recharts, FullCalendar, Docker.
