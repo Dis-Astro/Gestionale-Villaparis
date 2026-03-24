@@ -96,6 +96,24 @@ function AppuntamentiPageContent() {
     })
   }, [list, search])
 
+  const optionReminders = useMemo(() => {
+    const now = new Date()
+    return list
+      .filter((item) => item.dataScadenzaOpzione && item.statoOpzione !== 'confermata')
+      .map((item) => {
+        const expiresAt = new Date(item.dataScadenzaOpzione)
+        const diff = Math.ceil((expiresAt.getTime() - now.getTime()) / 86400000)
+        return {
+          id: item.id,
+          name: `${item.clientePrincipale?.nome || ''} ${item.clientePrincipale?.cognome || ''}`.trim() || 'Cliente',
+          expiresAt,
+          diff
+        }
+      })
+      .filter((item) => item.diff <= 7)
+      .sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime())
+  }, [list])
+
   const addDateOption = () => {
     const value = prompt('Inserisci data opzionata (YYYY-MM-DD)')
     if (!value) return
@@ -190,6 +208,23 @@ function AppuntamentiPageContent() {
           <p className="text-sm text-gray-500">Centro operativo pre-evento: colloquio, esito, date opzionate e funnel.</p>
         </div>
       </div>
+
+      {optionReminders.length > 0 && (
+        <Card className="border-red-200 bg-red-50" data-testid="appuntamenti-reminder-card">
+          <CardHeader><CardTitle className="text-base text-red-800">Reminder opzioni a 2 mesi</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm text-red-900">
+            {optionReminders.slice(0, 5).map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-white px-3 py-2" data-testid={`appuntamento-reminder-${item.id}`}>
+                <div>
+                  <p className="font-medium">{item.name}</p>
+                  <p className="text-xs text-red-700">Scadenza opzione: {item.expiresAt.toLocaleDateString('it-IT')}</p>
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em]">{item.diff < 0 ? 'scaduta' : `-${item.diff}g`}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card data-testid="quick-create-appuntamento-card">
         <CardHeader><CardTitle className="text-base">Nuovo Appuntamento</CardTitle></CardHeader>

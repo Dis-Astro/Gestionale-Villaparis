@@ -25,6 +25,7 @@ const pathLabels: Record<string, string> = {
   '/calendario': 'Calendario',
   '/eventi': 'Eventi',
   '/clienti': 'Clienti',
+  '/rapportini-interni': 'Rapportini Interni',
   '/appuntamenti': 'Appuntamenti',
   '/menu-base': 'Menu Base',
   '/report': 'Report',
@@ -43,12 +44,13 @@ const pathLabels: Record<string, string> = {
 interface Notifica {
   id: string
   testo: string
-  tipo: 'evento' | 'sistema'
+  tipo: 'evento' | 'sistema' | 'reminder'
   data: string
+  sortValue: number
   letta: boolean
 }
 
-function NotificheDropdown() {
+function NotificheDropdown({ role }: { role?: string }) {
   const [open, setOpen] = useState(false)
   const [notifiche, setNotifiche] = useState<Notifica[]>([])
   const ref = useRef<HTMLDivElement>(null)
@@ -56,9 +58,13 @@ function NotificheDropdown() {
   useEffect(() => {
     async function loadNotifiche() {
       try {
-        const res = await fetch('/api/eventi')
-        if (!res.ok) return
-        const eventi = await res.json()
+        const [eventiRes, appuntamentiRes] = await Promise.all([
+          fetch('/api/eventi'),
+          role !== 'WORKER' ? fetch('/api/appuntamenti') : Promise.resolve(null)
+        ])
+        if (!eventiRes.ok) return
+        const eventi = await eventiRes.json()
+        const appuntamenti = appuntamentiRes && appuntamentiRes.ok ? await appuntamentiRes.json() : []
         const oggi = new Date()
         const nots: Notifica[] = []
 
@@ -72,20 +78,35 @@ function NotificheDropdown() {
               testo: `${ev.titolo} tra ${diff} giorni`,
               tipo: 'evento',
               data: d.toLocaleDateString('it-IT'),
+              sortValue: d.getTime(),
               letta: diff > 7
             })
           }
         }
-        nots.sort((a, b) => {
-          const da = new Date(a.data.split('/').reverse().join('-'))
-          const db = new Date(b.data.split('/').reverse().join('-'))
-          return da.getTime() - db.getTime()
-        })
+
+        for (const app of Array.isArray(appuntamenti) ? appuntamenti : []) {
+          if (!app.dataScadenzaOpzione || app.statoOpzione === 'confermata') continue
+          const d = new Date(app.dataScadenzaOpzione)
+          const diff = Math.ceil((d.getTime() - oggi.getTime()) / 86400000)
+          if (diff <= 7) {
+            const nome = `${app.clientePrincipale?.nome || ''} ${app.clientePrincipale?.cognome || ''}`.trim() || 'Cliente'
+            nots.push({
+              id: `app-${app.id}`,
+              testo: diff < 0 ? `${nome}: opzione scaduta` : `${nome}: opzione in scadenza tra ${diff} giorni`,
+              tipo: 'reminder',
+              data: d.toLocaleDateString('it-IT'),
+              sortValue: d.getTime(),
+              letta: diff > 2
+            })
+          }
+        }
+
+        nots.sort((a, b) => a.sortValue - b.sortValue)
         setNotifiche(nots.slice(0, 10))
       } catch { /* ignora */ }
     }
     loadNotifiche()
-  }, [])
+  }, [role])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -132,7 +153,7 @@ function NotificheDropdown() {
                   key={n.id}
                   className={`px-4 py-3 border-b last:border-0 flex items-start gap-3 hover:bg-gray-50 ${!n.letta ? 'bg-amber-50' : ''}`}
                 >
-                  <Calendar className={`w-4 h-4 mt-0.5 flex-shrink-0 ${!n.letta ? 'text-amber-500' : 'text-gray-400'}`} />
+                  <Calendar className={`w-4 h-4 mt-0.5 flex-shrink-0 ${n.tipo === 'reminder' ? 'text-red-500' : (!n.letta ? 'text-amber-500' : 'text-gray-400')}`} />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm truncate ${!n.letta ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                       {n.testo}
@@ -287,7 +308,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           </div>
 
           {/* Notifications */}
-          <NotificheDropdown />
+              <NotificheDropdown role={user?.role} />
 
           {/* Desktop user + logout */}
           <div className="hidden lg:flex items-center gap-2 border-l pl-2 ml-1" data-testid="topbar-user-area">

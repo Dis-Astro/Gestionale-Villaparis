@@ -62,6 +62,13 @@ const menuItems: Array<{ label: string; href: string; icon: any; description: st
     roles: ['ADMIN', 'REPORT', 'WORKER']
   },
   {
+    label: 'Rapportini Interni',
+    href: '/rapportini-interni',
+    icon: FileText,
+    description: 'Presenze e passaggi in Villa',
+    roles: ['ADMIN', 'REPORT', 'WORKER']
+  },
+  {
     label: 'Menu Base',
     href: '/menu-base',
     icon: UtensilsCrossed,
@@ -210,13 +217,13 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
       <div className="shrink-0 border-t border-slate-700 p-4">
         <button
           onClick={() => {
-            router.push('/nuovo-evento')
+            router.push(role === 'WORKER' ? '/rapportini-interni' : '/nuovo-evento')
             onClose()
           }}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-medium rounded-lg transition-colors"
         >
           <Calendar className="w-5 h-5" />
-          Nuovo Evento
+          {role === 'WORKER' ? 'Nuovo Rapportino' : 'Nuovo Evento'}
         </button>
       </div>
 

@@ -115,6 +115,28 @@ model User {
   appuntamentiGestiti Appuntamento[]      @relation("OperatoreAppuntamenti")
   interazioniGestite  InterazioneCliente[]
   auditLogs           AuditLog[]
+  presenzeRegistrate  PresenzaVilla[]     @relation("CreatedByPresenze")
+}
+
+model PresenzaVilla {
+  id              Int       @id @default(autoincrement())
+  dataRiferimento DateTime
+  nome            String
+  cognome         String
+  azienda         String
+  orarioIngresso  String
+  orarioUscita    String
+  motivoVisita    String
+  mansioneSvolta  String
+  note            String?
+  createdByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  createdByUser   User?     @relation("CreatedByPresenze", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([dataRiferimento])
+  @@index([createdByUserId])
 }
 
 model Appuntamento {
