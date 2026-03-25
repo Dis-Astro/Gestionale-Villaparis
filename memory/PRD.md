@@ -12,6 +12,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 **STEP login/reminder/rapportini COMPLETATO:** login admin verificato, reminder operativo sulle opzioni a 2 mesi aggiunto e nuovo modulo `Rapportini Interni` disponibile per Worker/Admin/Report.
 **STEP delete account COMPLETATO:** Gestione Utenti ora supporta l’eliminazione account con protezioni conservative lato Admin.
 **STEP ruolo REPORT + primo contatto COMPLETATO:** permessi REPORT ridotti ai soli strumenti utili e creazione primo contatto resa coerente con il modello FASE 1 senza eventi fittizi.
+**HOTFIX WORKER Appuntamenti COMPLETATO:** ripristinato accesso menu/pagina `Appuntamenti` per il ruolo WORKER.
 
 ## Ultimo aggiornamento (10-03-2026)
 - Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
@@ -142,6 +143,10 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
     - calendario rapido appuntamenti invia `dataPrimoContatto=today`
     - creazione automatica `InterazioneCliente` di tipo `primo_contatto` per nuovi clienti creati via appuntamento o anagrafica
     - calendario continua a mostrare il primo contatto come voce dedicata, senza reintrodurre eventi fittizi
+- **Hotfix WORKER Appuntamenti (25-03-2026) COMPLETATO**
+  - ripristinata la voce `Appuntamenti` nel menu WORKER
+  - ripristinato l’accesso route `/appuntamenti` per WORKER
+  - nessuna modifica al profilo REPORT
 
 ## Validazione
 - Build produzione: `npm run build` ✅ (20-03-2026, FASE 3 inclusa)
@@ -166,6 +171,8 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Build produzione ruolo REPORT + primo contatto: `npm run build` ✅ (25-03-2026)
 - Testing Agent: `/app/test_reports/iteration_20.json` → REPORT permissions/read-only + primo contatto corretto + calendario PASS ✅
 - Auto frontend smoke: sidebar REPORT ridotta + dashboard senza `Nuovo Evento` PASS ✅
+- Build produzione hotfix WORKER: `npm run build` ✅ (25-03-2026)
+- Auto frontend smoke: WORKER vede `Appuntamenti` e apre correttamente `/appuntamenti` ✅
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
@@ -188,6 +195,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Login admin verificato operativo; reminder app opzioni aggiunto; Worker/Admin dispongono ora del modulo rapportini interni.
 - Gestione Utenti ora include eliminazione account con salvaguardie conservative.
 - Ruolo REPORT e flusso primo contatto ora coerenti con il modello e validati end-to-end.
+- Ruolo WORKER nuovamente completo con accesso ad `Appuntamenti`.
 
 ## Note tecniche di compatibilità
 - In ambiente preview locale, l’esecuzione manuale di `npm run build` rigenera temporaneamente Prisma sullo schema produzione (`schema.prisma`); per ripristinare il runtime dev (`schema.dev.prisma`) può essere necessario `sudo supervisorctl restart frontend` dopo il build. La build production resta comunque valida.
