@@ -11,6 +11,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 **STEP PDF report eventi COMPLETATO:** aggiunto export/stampa PDF dedicato al solo modulo `/report/eventi`, lasciando isolato il report operativo.
 **STEP login/reminder/rapportini COMPLETATO:** login admin verificato, reminder operativo sulle opzioni a 2 mesi aggiunto e nuovo modulo `Rapportini Interni` disponibile per Worker/Admin/Report.
 **STEP delete account COMPLETATO:** Gestione Utenti ora supporta l’eliminazione account con protezioni conservative lato Admin.
+**STEP ruolo REPORT + primo contatto COMPLETATO:** permessi REPORT ridotti ai soli strumenti utili e creazione primo contatto resa coerente con il modello FASE 1 senza eventi fittizi.
 
 ## Ultimo aggiornamento (10-03-2026)
 - Deploy Proxmox stabilizzato (`Dockerfile` con `npm install`, branch `OPUS`, script one-liner allineato).
@@ -130,6 +131,17 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
     - blocco eliminazione utenti con dati collegati (messaggio: usare `Disattiva`)
   - audit log della cancellazione account riuscita
   - nessuna regressione su creazione utente, cambio ruolo, reset password, attiva/disattiva
+- **Ruolo REPORT + primo contatto corretto (25-03-2026) COMPLETATO**
+  - REPORT vede solo: `Dashboard`, `Calendario`, `Rapportini Interni`, `Report Operativo`, `Report Eventi`, `Stampe`, `Audit Log`
+  - REPORT bloccato/redirect da pagine non pertinenti: `Clienti`, `Eventi`, `Appuntamenti`, `Menu Base`, `Impostazioni`, `Utenti`
+  - REPORT in sola lettura anche sulle API operative (`/api/clienti`, `/api/eventi`, `/api/appuntamenti`, `/api/presenze-villa` → solo GET)
+  - Dashboard/Calendario/Rapportini adattati per REPORT senza azioni superflue (`Nuovo Evento`, form inserimento, modifiche)
+  - root cause primo contatto: in creazione appuntamento con cliente nuovo la `dataPrimoContatto` ereditava la data dell’appuntamento futuro anziché la data reale del contatto odierno
+  - fix minimo applicato:
+    - `dataPrimoContatto` default su data odierna se non esplicitata
+    - calendario rapido appuntamenti invia `dataPrimoContatto=today`
+    - creazione automatica `InterazioneCliente` di tipo `primo_contatto` per nuovi clienti creati via appuntamento o anagrafica
+    - calendario continua a mostrare il primo contatto come voce dedicata, senza reintrodurre eventi fittizi
 
 ## Validazione
 - Build produzione: `npm run build` ✅ (20-03-2026, FASE 3 inclusa)
@@ -151,6 +163,9 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Deep backend smoke: login/admin + presenze-villa + eventi/report PASS ✅
 - Build produzione delete account: `npm run build` ✅ (24-03-2026)
 - Testing Agent: `/app/test_reports/iteration_19.json` → delete account PASS, protezioni PASS, nessuna regressione utenti/report ✅
+- Build produzione ruolo REPORT + primo contatto: `npm run build` ✅ (25-03-2026)
+- Testing Agent: `/app/test_reports/iteration_20.json` → REPORT permissions/read-only + primo contatto corretto + calendario PASS ✅
+- Auto frontend smoke: sidebar REPORT ridotta + dashboard senza `Nuovo Evento` PASS ✅
 - Test TypeScript: `npx tsc --noEmit` ✅
 - Smoke test UI Playwright su calendario/nuovo evento/piantina ✅
 - Testing Agent: `/app/test_reports/iteration_6.json` → tutte le feature richieste PASS ✅
@@ -172,6 +187,7 @@ Sistema gestionale per location eventi (matrimoni, battesimi, feste) per Villa P
 - Report eventi storico ora dispone anche di export/stampa PDF dedicato senza impattare il report operativo.
 - Login admin verificato operativo; reminder app opzioni aggiunto; Worker/Admin dispongono ora del modulo rapportini interni.
 - Gestione Utenti ora include eliminazione account con salvaguardie conservative.
+- Ruolo REPORT e flusso primo contatto ora coerenti con il modello e validati end-to-end.
 
 ## Note tecniche di compatibilità
 - In ambiente preview locale, l’esecuzione manuale di `npm run build` rigenera temporaneamente Prisma sullo schema produzione (`schema.prisma`); per ripristinare il runtime dev (`schema.dev.prisma`) può essere necessario `sudo supervisorctl restart frontend` dopo il build. La build production resta comunque valida.
