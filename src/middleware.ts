@@ -20,6 +20,7 @@ function decodePayload(token: string): any | null {
 function isAllowedForWorker(pathname: string) {
   const allowed = [
     '/calendario',
+    '/appuntamenti',
     '/eventi',
     '/modifica-evento',
     '/nuovo-evento',

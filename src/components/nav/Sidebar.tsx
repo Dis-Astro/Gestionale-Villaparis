@@ -45,7 +45,7 @@ const menuItems: Array<{ label: string; href: string; icon: any; description: st
     href: '/appuntamenti',
     icon: Handshake,
     description: 'Scheda centrale pre-evento',
-    roles: ['ADMIN']
+    roles: ['ADMIN', 'WORKER']
   },
   {
     label: 'Eventi',

@@ -309,6 +309,18 @@ frontend:
         agent: "testing"
         comment: "✅ PASSED: All pages load with content (not blank). No blocking console errors detected (0 TypeError, ReferenceError, or Failed to load errors). No critical failed API requests (0 5xx errors on /api/* endpoints). Application is stable and ready for production."
 
+  - task: "WORKER Fix: Sidebar shows Appuntamenti for WORKER role"
+    implemented: true
+    working: true
+    file: "/app/src/components/nav/Sidebar.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: WORKER role fix verified successfully. Login with worker.check@villaparis.local / Worker123! works correctly (redirects to /calendario). WORKER sidebar now shows 'Appuntamenti' menu item with description 'Scheda centrale pre-evento' - fix confirmed working. /appuntamenti page opens correctly for WORKER with all required elements (page container, title, quick create card, list card, detail card). All 7 WORKER menu items present (Calendario, Appuntamenti, Eventi, Clienti, Rapportini Interni, Menu Base, Stampe). Zero blocking console errors. WORKER role fix is PRODUCTION READY."
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
@@ -345,3 +357,5 @@ agent_communication:
     message: "🎯 VILLA PARIS FINAL VERIFICATION COMPLETE - Login/Rapportini/Appuntamenti Reminder - All 5 targets verified successfully on http://127.0.0.1:3000: TARGET 1 ✅ Admin login with admin@villaparis.local / Admin123! works correctly, successfully redirected to /dashboard. TARGET 2 ✅ Sidebar shows 'Rapportini Interni' menu item with description 'Presenze e passaggi in Villa'. TARGET 3 ✅ /rapportini-interni page loads correctly with 'Stampa / PDF' button visible for ADMIN role, form and list cards present. TARGET 4 ⚠️ /appuntamenti page loads successfully with all main cards (quick create, list, detail) present. Reminder card functionality is correctly implemented in code (lines 99-115 and 212-227 of appuntamenti/page.tsx) but not displayed as there are no appointments with dataScadenzaOpzione within 7 days in current database. Reminder logic filters appointments with expiring options (within 7 days) and displays them in a red card with data-testid='appuntamenti-reminder-card'. TARGET 5 ✅ /report/azienda remains intact with correct title 'Reportistica operativa reale', Export Excel and Export PDF buttons present, 23 card elements found. Zero console errors detected. All features PRODUCTION READY."
   - agent: "testing"
     message: "🎯 VILLA PARIS FINAL BACKEND VERIFICATION COMPLETE - Review Request Targets - All 5 backend requirements verified successfully on http://127.0.0.1:3000: TARGET 1 ✅ POST /api/auth/login with admin@villaparis.local / Admin123! works correctly (200 status, session cookies received). TARGET 2 ✅ GET /api/auth/me confirms admin active (email: admin@villaparis.local, role: ADMIN). TARGET 3 ✅ GET/POST/DELETE /api/presenze-villa work with Admin - GET returns 5 existing records, POST creates test record successfully (ID 5), DELETE cleans up test record successfully. TARGET 4 ✅ GET /api/eventi (81 records) and GET /api/report/stats (12 sections) do not fail in current runtime - both return 200 status. TARGET 5 ✅ No regression on /api/report/azienda.xlsx (17275 bytes) and /api/report/eventi.xlsx (22304 bytes) - both return valid Excel files with correct content-type headers. All backend endpoints are stable and production ready. Minor intermittent Next.js manifest loading issues resolved with frontend service restart."
+  - agent: "testing"
+    message: "🎯 WORKER FIX VERIFICATION COMPLETE - All 4 review targets verified successfully on http://127.0.0.1:3000: TARGET 1 ✅ Login with worker.check@villaparis.local / Worker123! works correctly, successfully redirected to /calendario (WORKER default landing page). TARGET 2 ✅ WORKER sidebar shows 'Appuntamenti' menu item with description 'Scheda centrale pre-evento' - FIX CONFIRMED WORKING. TARGET 3 ✅ /appuntamenti page opens correctly for WORKER role with all required elements: page container (data-testid='appuntamenti-page'), page title 'Scheda Appuntamenti', quick create card, list card, and detail card all present and functional. TARGET 4 ✅ No regressions on main WORKER menu items - all 7 expected items present: Calendario, Appuntamenti, Eventi, Clienti, Rapportini Interni, Menu Base, and Stampe. Zero blocking console errors detected. WORKER role fix is PRODUCTION READY."
