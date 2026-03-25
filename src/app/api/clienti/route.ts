@@ -14,6 +14,13 @@ function parseDate(value: any): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+function buildFirstContactSummary(canale?: string | null, note?: string | null) {
+  const parts = ['Primo contatto registrato']
+  if (canale) parts.push(`via ${canale}`)
+  if (note) parts.push(`— ${note.trim()}`)
+  return parts.join(' ')
+}
+
 // GET /api/clienti          → lista tutti
 // GET /api/clienti?id=X     → dettaglio singolo
 export async function GET(req: NextRequest) {
@@ -83,6 +90,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse('Nome obbligatorio', { status: 400 })
     }
 
+    const dataPrimoContatto = parseDate(body.dataPrimoContatto) || new Date()
     const cliente = await prisma.cliente.create({
       data: {
         nome:                    body.nome.trim(),
@@ -97,7 +105,7 @@ export async function POST(req: NextRequest) {
         codiceFiscale:           body.codiceFiscale?.trim() || null,
         tipoCliente:             body.tipoCliente || null,
         canalePrimoContatto:     body.canalePrimoContatto || null,
-        dataPrimoContatto:       parseDate(body.dataPrimoContatto),
+        dataPrimoContatto,
         isSpam:                  Boolean(body.isSpam),
         spamReason:              body.spamReason?.trim() || null,
         spamMarkedAt:            body.isSpam ? new Date() : null,
@@ -105,6 +113,17 @@ export async function POST(req: NextRequest) {
         secondoContattoTelefono: body.secondoContattoTelefono?.trim() || null,
         secondoContattoEmail:    body.secondoContattoEmail?.trim() || null,
         notaAnagrafica:          body.notaAnagrafica?.trim() || null,
+      }
+    })
+
+    await prisma.interazioneCliente.create({
+      data: {
+        clienteId: cliente.id,
+        tipo: 'primo_contatto',
+        durataMinuti: 0,
+        sintesi: buildFirstContactSummary(body.canalePrimoContatto || null, body.notaAnagrafica || null),
+        operatoreId: auth.user.id,
+        dataInterazione: dataPrimoContatto
       }
     })
 

@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['ADMIN', 'REPORT', 'WORKER'])
+  const auth = await requireAuth(req, ['ADMIN', 'WORKER'])
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   try {
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const auth = await requireAuth(req, ['ADMIN', 'REPORT'])
+  const auth = await requireAuth(req, ['ADMIN'])
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { searchParams } = new URL(req.url)

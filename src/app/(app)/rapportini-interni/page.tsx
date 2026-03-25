@@ -13,7 +13,7 @@ type Role = 'ADMIN' | 'REPORT' | 'WORKER'
 const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function RapportiniInterniPage() {
-  const [role, setRole] = useState<Role>('WORKER')
+  const [role, setRole] = useState<Role | null>(null)
   const [mode, setMode] = useState<'day' | 'week'>('day')
   const [selectedDate, setSelectedDate] = useState(TODAY)
   const [items, setItems] = useState<PresenzaVillaItem[]>([])
@@ -95,7 +95,7 @@ export default function RapportiniInterniPage() {
           <h1 className="text-2xl font-bold text-gray-900" data-testid="rapportini-title">Rapportini Interni</h1>
           <p className="text-sm text-gray-500" data-testid="rapportini-description">Registro presenze in Villa con apertura giornaliera automatica sulla data corrente.</p>
         </div>
-        {role !== 'WORKER' && (
+        {role && role !== 'WORKER' && (
           <Button type="button" onClick={() => downloadPresenzeVillaPdf({ mode, selectedDate, items })} data-testid="rapportini-export-pdf-button">
             <FileText className="w-4 h-4 mr-2" /> Stampa / PDF
           </Button>
@@ -109,7 +109,7 @@ export default function RapportiniInterniPage() {
             <label className="block text-sm text-gray-600 mb-1">Data</label>
             <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} data-testid="rapportini-date-input" />
           </div>
-          {role !== 'WORKER' && (
+          {role && role !== 'WORKER' && (
             <div>
               <label className="block text-sm text-gray-600 mb-1">Vista</label>
               <select className="border rounded px-3 py-2 text-sm" value={mode} onChange={(e) => setMode(e.target.value as 'day' | 'week')} data-testid="rapportini-mode-select">
@@ -123,25 +123,27 @@ export default function RapportiniInterniPage() {
 
       {status && <div className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-700" data-testid="rapportini-status">{status}</div>}
 
-      <Card data-testid="rapportini-form-card">
-        <CardHeader><CardTitle className="text-base">Nuova presenza in Villa</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} data-testid="rapportini-nome-input" />
-          <Input placeholder="Cognome" value={form.cognome} onChange={(e) => setForm((p) => ({ ...p, cognome: e.target.value }))} data-testid="rapportini-cognome-input" />
-          <Input placeholder="Azienda" value={form.azienda} onChange={(e) => setForm((p) => ({ ...p, azienda: e.target.value }))} data-testid="rapportini-azienda-input" />
-          <div className="rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-600" data-testid="rapportini-data-preview">Data registrazione: {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('it-IT')}</div>
-          <Input type="time" value={form.orarioIngresso} onChange={(e) => setForm((p) => ({ ...p, orarioIngresso: e.target.value }))} data-testid="rapportini-ingresso-input" />
-          <Input type="time" value={form.orarioUscita} onChange={(e) => setForm((p) => ({ ...p, orarioUscita: e.target.value }))} data-testid="rapportini-uscita-input" />
-          <Input placeholder="Motivo visita" value={form.motivoVisita} onChange={(e) => setForm((p) => ({ ...p, motivoVisita: e.target.value }))} data-testid="rapportini-motivo-input" />
-          <Input placeholder="Mansione svolta" value={form.mansioneSvolta} onChange={(e) => setForm((p) => ({ ...p, mansioneSvolta: e.target.value }))} data-testid="rapportini-mansione-input" />
-          <div className="md:col-span-3">
-            <Textarea placeholder="Note interne (facoltative)" value={form.note} onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} data-testid="rapportini-note-input" />
-          </div>
-          <Button type="button" onClick={submit} disabled={saving} data-testid="rapportini-submit-button">
-            <Plus className="w-4 h-4 mr-2" /> {saving ? 'Salvataggio...' : 'Registra presenza'}
-          </Button>
-        </CardContent>
-      </Card>
+      {role && role !== 'REPORT' && (
+        <Card data-testid="rapportini-form-card">
+          <CardHeader><CardTitle className="text-base">Nuova presenza in Villa</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} data-testid="rapportini-nome-input" />
+            <Input placeholder="Cognome" value={form.cognome} onChange={(e) => setForm((p) => ({ ...p, cognome: e.target.value }))} data-testid="rapportini-cognome-input" />
+            <Input placeholder="Azienda" value={form.azienda} onChange={(e) => setForm((p) => ({ ...p, azienda: e.target.value }))} data-testid="rapportini-azienda-input" />
+            <div className="rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-600" data-testid="rapportini-data-preview">Data registrazione: {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('it-IT')}</div>
+            <Input type="time" value={form.orarioIngresso} onChange={(e) => setForm((p) => ({ ...p, orarioIngresso: e.target.value }))} data-testid="rapportini-ingresso-input" />
+            <Input type="time" value={form.orarioUscita} onChange={(e) => setForm((p) => ({ ...p, orarioUscita: e.target.value }))} data-testid="rapportini-uscita-input" />
+            <Input placeholder="Motivo visita" value={form.motivoVisita} onChange={(e) => setForm((p) => ({ ...p, motivoVisita: e.target.value }))} data-testid="rapportini-motivo-input" />
+            <Input placeholder="Mansione svolta" value={form.mansioneSvolta} onChange={(e) => setForm((p) => ({ ...p, mansioneSvolta: e.target.value }))} data-testid="rapportini-mansione-input" />
+            <div className="md:col-span-3">
+              <Textarea placeholder="Note interne (facoltative)" value={form.note} onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} data-testid="rapportini-note-input" />
+            </div>
+            <Button type="button" onClick={submit} disabled={saving} data-testid="rapportini-submit-button">
+              <Plus className="w-4 h-4 mr-2" /> {saving ? 'Salvataggio...' : 'Registra presenza'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card data-testid="rapportini-list-card">
         <CardHeader><CardTitle className="text-base">Presenze registrate</CardTitle></CardHeader>

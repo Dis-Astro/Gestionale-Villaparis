@@ -20,6 +20,7 @@ const DEFAULT_FILTERS: ReportQueryFilters = {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const [role, setRole] = useState<'ADMIN' | 'REPORT' | 'WORKER' | null>(null)
   const [filters, setFilters] = useState<ReportQueryFilters>(DEFAULT_FILTERS)
   const [report, setReport] = useState<OperationalReportResponse | null>(null)
   const [nextEvent, setNextEvent] = useState<any | null>(null)
@@ -28,6 +29,16 @@ export default function DashboardPage() {
   const [error, setError] = useState('')
 
   const queryString = useMemo(() => buildReportQuery(filters), [filters])
+
+  useEffect(() => {
+    const loadMe = async () => {
+      const res = await fetch('/api/auth/me')
+      if (!res.ok) return
+      const data = await res.json()
+      setRole(data.role)
+    }
+    loadMe()
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -103,9 +114,11 @@ export default function DashboardPage() {
             <Button onClick={() => router.push('/report/azienda')} className="bg-amber-400 text-slate-900 hover:bg-amber-300" data-testid="dashboard-open-report-button">
               <FileText className="w-4 h-4 mr-2" /> Apri report completo
             </Button>
-            <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/20" onClick={() => router.push('/nuovo-evento')} data-testid="dashboard-new-event-button">
-              <Plus className="w-4 h-4 mr-2" /> Nuovo evento
-            </Button>
+            {role && role !== 'REPORT' && (
+              <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/20" onClick={() => router.push('/nuovo-evento')} data-testid="dashboard-new-event-button">
+                <Plus className="w-4 h-4 mr-2" /> Nuovo evento
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -205,9 +218,15 @@ export default function DashboardPage() {
                         <p className="mt-1 font-medium text-slate-900">{nextEvent.personePreviste || 'N/D'}</p>
                       </div>
                     </div>
-                    <Button variant="outline" className="w-full" onClick={() => router.push(`/modifica-evento/${nextEvent.id}`)} data-testid="dashboard-next-event-open-button">
-                      Vai all'evento <ChevronRight className="w-4 h-4 ml-2" />
-                    </Button>
+                    {role === null ? null : role !== 'REPORT' ? (
+                      <Button variant="outline" className="w-full" onClick={() => router.push(`/modifica-evento/${nextEvent.id}`)} data-testid="dashboard-next-event-open-button">
+                        Vai all'evento <ChevronRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    ) : (
+                      <div className="w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-600" data-testid="dashboard-next-event-readonly-box">
+                        Vista report: riepilogo evento senza accesso alla modifica.
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="py-8 text-center text-slate-500" data-testid="dashboard-next-event-empty">
@@ -251,7 +270,7 @@ export default function DashboardPage() {
                   <button
                     key={event.id}
                     type="button"
-                    onClick={() => router.push(`/modifica-evento/${event.id}`)}
+                    onClick={() => role && role !== 'REPORT' && router.push(`/modifica-evento/${event.id}`)}
                     className="rounded-2xl border bg-slate-50 p-4 text-left transition-colors hover:bg-slate-100"
                     data-testid={`dashboard-recent-event-${event.id}`}
                   >
@@ -276,14 +295,29 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => router.push('/nuovo-evento')} data-testid="dashboard-quick-new-event">
-                  <Plus className="w-5 h-5 text-amber-500" />
-                  <span>Nuovo evento</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => router.push('/clienti')} data-testid="dashboard-quick-clients">
-                  <Users className="w-5 h-5 text-sky-500" />
-                  <span>Clienti</span>
-                </Button>
+                {role === null ? null : role !== 'REPORT' ? (
+                  <>
+                    <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => router.push('/nuovo-evento')} data-testid="dashboard-quick-new-event">
+                      <Plus className="w-5 h-5 text-amber-500" />
+                      <span>Nuovo evento</span>
+                    </Button>
+                    <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => router.push('/clienti')} data-testid="dashboard-quick-clients">
+                      <Users className="w-5 h-5 text-sky-500" />
+                      <span>Clienti</span>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => router.push('/rapportini-interni')} data-testid="dashboard-quick-rapportini">
+                      <FileText className="w-5 h-5 text-amber-500" />
+                      <span>Rapportini</span>
+                    </Button>
+                    <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => router.push('/stampe')} data-testid="dashboard-quick-stampe">
+                      <FileText className="w-5 h-5 text-sky-500" />
+                      <span>Stampe</span>
+                    </Button>
+                  </>
+                )}
                 <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={() => router.push('/report/azienda')} data-testid="dashboard-quick-report">
                   <FileText className="w-5 h-5 text-emerald-500" />
                   <span>Report</span>

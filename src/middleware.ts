@@ -41,6 +41,45 @@ function isAllowedForWorker(pathname: string) {
   return allowed.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
 
+function isAllowedForReport(pathname: string, method: string) {
+  const allowedPages = [
+    '/dashboard',
+    '/calendario',
+    '/rapportini-interni',
+    '/report',
+    '/stampe',
+    '/audit'
+  ]
+
+  const allowedApiPrefixes = [
+    '/api/auth/me',
+    '/api/auth/logout',
+    '/api/report',
+    '/api/audit',
+    '/api/presenze-villa',
+    '/api/eventi',
+    '/api/clienti',
+    '/api/appuntamenti'
+  ]
+
+  if (!pathname.startsWith('/api/')) {
+    return allowedPages.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  }
+
+  const isAllowedPrefix = allowedApiPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  if (!isAllowedPrefix) return false
+
+  if (pathname.startsWith('/api/presenze-villa')) {
+    return method === 'GET'
+  }
+
+  if (pathname.startsWith('/api/eventi') || pathname.startsWith('/api/clienti') || pathname.startsWith('/api/appuntamenti')) {
+    return method === 'GET'
+  }
+
+  return true
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
@@ -105,6 +144,12 @@ export function middleware(req: NextRequest) {
     return pathname.startsWith('/api/')
       ? NextResponse.json({ error: 'Permesso negato' }, { status: 403 })
       : NextResponse.redirect(new URL('/calendario', req.url))
+  }
+
+  if (role === 'REPORT' && !isAllowedForReport(pathname, req.method)) {
+    return pathname.startsWith('/api/')
+      ? NextResponse.json({ error: 'Permesso negato' }, { status: 403 })
+      : NextResponse.redirect(new URL('/dashboard', req.url))
   }
 
   return NextResponse.next()

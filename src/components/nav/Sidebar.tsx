@@ -45,21 +45,21 @@ const menuItems: Array<{ label: string; href: string; icon: any; description: st
     href: '/appuntamenti',
     icon: Handshake,
     description: 'Scheda centrale pre-evento',
-    roles: ['ADMIN', 'REPORT']
+    roles: ['ADMIN']
   },
   {
     label: 'Eventi',
     href: '/eventi',
     icon: LayoutGrid,
     description: 'Gestione eventi',
-    roles: ['ADMIN', 'REPORT', 'WORKER']
+    roles: ['ADMIN', 'WORKER']
   },
   {
     label: 'Clienti',
     href: '/clienti',
     icon: Users,
     description: 'Anagrafica clienti',
-    roles: ['ADMIN', 'REPORT', 'WORKER']
+    roles: ['ADMIN', 'WORKER']
   },
   {
     label: 'Rapportini Interni',
@@ -73,7 +73,7 @@ const menuItems: Array<{ label: string; href: string; icon: any; description: st
     href: '/menu-base',
     icon: UtensilsCrossed,
     description: 'Template menu',
-    roles: ['ADMIN', 'REPORT', 'WORKER']
+    roles: ['ADMIN', 'WORKER']
   },
   {
     label: 'Report Operativo',
@@ -115,13 +115,13 @@ const menuItems: Array<{ label: string; href: string; icon: any; description: st
     href: '/impostazioni',
     icon: Settings,
     description: 'Configurazione',
-    roles: ['ADMIN', 'REPORT']
+    roles: ['ADMIN']
   }
 ]
 
 export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) {
   const router = useRouter()
-  const [role, setRole] = useState<Role>('WORKER')
+  const [role, setRole] = useState<Role | null>(null)
   const [email, setEmail] = useState('')
 
   useEffect(() => {
@@ -133,16 +133,13 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
         setRole(data.role)
         setEmail(data.email)
       } catch {
-        setRole('WORKER')
+        setRole(null)
       }
     }
     loadMe()
   }, [])
 
-  const visibleMenu = useMemo(
-    () => menuItems.filter((item) => item.roles.includes(role)),
-    [role]
-  )
+  const visibleMenu = useMemo(() => (role ? menuItems.filter((item) => item.roles.includes(role)) : []), [role])
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return currentPath === '/' || currentPath === '/dashboard'
@@ -217,13 +214,15 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
       <div className="shrink-0 border-t border-slate-700 p-4">
         <button
           onClick={() => {
-            router.push(role === 'WORKER' ? '/rapportini-interni' : '/nuovo-evento')
+            if (!role) return
+            router.push(role === 'WORKER' ? '/rapportini-interni' : role === 'REPORT' ? '/report/azienda' : '/nuovo-evento')
             onClose()
           }}
+          disabled={!role}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-medium rounded-lg transition-colors"
         >
           <Calendar className="w-5 h-5" />
-          {role === 'WORKER' ? 'Nuovo Rapportino' : 'Nuovo Evento'}
+          {role === 'WORKER' ? 'Nuovo Rapportino' : role === 'REPORT' ? 'Apri Report' : 'Nuovo Evento'}
         </button>
       </div>
 

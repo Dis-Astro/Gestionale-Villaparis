@@ -16,6 +16,17 @@ function toDateOrNull(value: any): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+function firstContactDate(value?: any) {
+  return toDateOrNull(value) || new Date()
+}
+
+function firstContactSummary(canale?: string | null, note?: string | null) {
+  const parts = ['Primo contatto registrato']
+  if (canale) parts.push(`via ${canale}`)
+  if (note) parts.push(`— ${note.trim()}`)
+  return parts.join(' ')
+}
+
 function parseDateOpzionate(raw: any): string[] {
   if (Array.isArray(raw)) return raw.filter(Boolean)
   return dbJsonParse<string[]>(raw, []).filter(Boolean)
@@ -29,11 +40,26 @@ function normalizeAppuntamentoOut(record: any) {
 }
 
 async function resolveClienti(clientiPayload: any[], fallbackCanale?: string | null, fallbackData?: Date | null) {
-  const resolved: Array<{ id: number; ruolo?: string }> = []
+  const resolved: Array<{ id: number; ruolo?: string; createFirstContactInteraction?: boolean; firstContactAt?: Date }> = []
 
   for (const c of clientiPayload || []) {
     if (c.id) {
-      resolved.push({ id: Number(c.id), ruolo: c.ruolo })
+      const existing = await prisma.cliente.findUnique({ where: { id: Number(c.id) } })
+      if (existing && (!existing.dataPrimoContatto || (!existing.canalePrimoContatto && fallbackCanale))) {
+        await prisma.cliente.update({
+          where: { id: Number(c.id) },
+          data: {
+            dataPrimoContatto: existing.dataPrimoContatto || fallbackData || new Date(),
+            canalePrimoContatto: existing.canalePrimoContatto || fallbackCanale || null
+          }
+        })
+      }
+      resolved.push({
+        id: Number(c.id),
+        ruolo: c.ruolo,
+        createFirstContactInteraction: Boolean(existing && !existing.dataPrimoContatto),
+        firstContactAt: existing?.dataPrimoContatto || fallbackData || new Date()
+      })
       continue
     }
 
@@ -43,6 +69,7 @@ async function resolveClienti(clientiPayload: any[], fallbackCanale?: string | n
 
     let cliente = await prisma.cliente.findFirst({ where: { email } })
     if (!cliente) {
+      const contactAt = toDateOrNull(c.dataPrimoContatto) || fallbackData || new Date()
       cliente = await prisma.cliente.create({
         data: {
           nome: c.nome.trim(),
@@ -51,12 +78,29 @@ async function resolveClienti(clientiPayload: any[], fallbackCanale?: string | n
           telefono: c.telefono?.trim() || null,
           tipoCliente: c.tipoCliente || null,
           canalePrimoContatto: fallbackCanale || null,
-          dataPrimoContatto: fallbackData || new Date()
+          dataPrimoContatto: contactAt
+        }
+      })
+      resolved.push({ id: cliente.id, ruolo: c.ruolo, createFirstContactInteraction: true, firstContactAt: contactAt })
+      continue
+    }
+
+    if (!cliente.dataPrimoContatto || (!cliente.canalePrimoContatto && fallbackCanale)) {
+      await prisma.cliente.update({
+        where: { id: cliente.id },
+        data: {
+          dataPrimoContatto: cliente.dataPrimoContatto || fallbackData || new Date(),
+          canalePrimoContatto: cliente.canalePrimoContatto || fallbackCanale || null
         }
       })
     }
 
-    resolved.push({ id: cliente.id, ruolo: c.ruolo })
+    resolved.push({
+      id: cliente.id,
+      ruolo: c.ruolo,
+      createFirstContactInteraction: !cliente.dataPrimoContatto,
+      firstContactAt: cliente.dataPrimoContatto || fallbackData || new Date()
+    })
   }
 
   return resolved
@@ -157,7 +201,8 @@ export async function POST(req: NextRequest) {
     }
 
     const canale = body.canalePrimoContatto || null
-    const clientiResolved = await resolveClienti(body.clienti || [], canale, dataAppuntamento)
+    const contattoAt = firstContactDate(body.dataPrimoContatto)
+    const clientiResolved = await resolveClienti(body.clienti || [], canale, contattoAt)
 
     const clientePrincipaleId = body.clientePrincipaleId
       ? Number(body.clientePrincipaleId)
@@ -205,6 +250,21 @@ export async function POST(req: NextRequest) {
         clienti: { include: { cliente: true } }
       }
     })
+
+    const interazioniPrimoContatto = clientiResolved
+      .filter((cliente) => cliente.createFirstContactInteraction)
+      .map((cliente) => ({
+        clienteId: cliente.id,
+        tipo: 'primo_contatto',
+        durataMinuti: 0,
+        sintesi: firstContactSummary(canale, body.noteColloquio || body.riassuntoColloquio || null),
+        operatoreId: created.operatoreId || null,
+        dataInterazione: cliente.firstContactAt || contattoAt
+      }))
+
+    if (interazioniPrimoContatto.length) {
+      await prisma.interazioneCliente.createMany({ data: interazioniPrimoContatto })
+    }
 
     await prisma.interazioneCliente.create({
       data: {

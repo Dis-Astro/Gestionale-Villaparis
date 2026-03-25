@@ -49,7 +49,7 @@ const CANALI = [
 const vuotoCliente = (): Omit<Cliente, 'id' | 'eventi'> => ({
   nome: '', cognome: '', email: '', telefono: '', telefonoAlt: '',
   indirizzo: '', cap: '', citta: '', dataNascita: '', codiceFiscale: '',
-  tipoCliente: '', canalePrimoContatto: '', dataPrimoContatto: '',
+  tipoCliente: '', canalePrimoContatto: '', dataPrimoContatto: new Date().toISOString().slice(0, 10),
   notaAnagrafica: '',
   isSpam: false,
   spamReason: ''

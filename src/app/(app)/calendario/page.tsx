@@ -116,6 +116,7 @@ export default function CalendarioPage() {
   const router = useRouter()
   const calendarRef = useRef<any>(null)
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const [role, setRole] = useState<'ADMIN' | 'REPORT' | 'WORKER' | null>(null)
   const [dataSelezionata, setDataSelezionata] = useState(todayIso)
   const [ricercaEvento, setRicercaEvento] = useState('')
   const [filtroVista, setFiltroVista] = useState('tutti')
@@ -144,6 +145,18 @@ export default function CalendarioPage() {
     const dt = new Date(d); const now = new Date()
     return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear()
   }).length
+
+  const canManageCalendar = role !== null && role !== 'REPORT'
+
+  useEffect(() => {
+    const loadMe = async () => {
+      const res = await fetch('/api/auth/me')
+      if (!res.ok) return
+      const data = await res.json()
+      setRole(data.role)
+    }
+    loadMe()
+  }, [])
 
   const eventiPerData = useCallback((data: string) => {
     const daEventi = eventi.filter(e =>
@@ -311,7 +324,7 @@ export default function CalendarioPage() {
     setDataSelezionata(data)
     const evGiorno = eventiPerData(data)
     setEventiDelGiorno(evGiorno)
-    if (evGiorno.length === 0) {
+    if (evGiorno.length === 0 && canManageCalendar) {
       setShowAppuntamento(true)
       setAppuntamento({ nome: '', telefono: '', email: '', ora: '10:00', note: '', canale: '' })
       setStatus('')
@@ -439,11 +452,11 @@ export default function CalendarioPage() {
     if (last && last.id === eventoId && now - last.time < 400) {
       // Doppio click → apri scheda completa
       if (isAppointment) {
-        router.push(`/appuntamenti?id=${eventoId}`)
+        if (canManageCalendar) router.push(`/appuntamenti?id=${eventoId}`)
       } else if (isFirstContact) {
-        router.push('/clienti')
+        if (canManageCalendar) router.push('/clienti')
       } else {
-        router.push(`/modifica-evento/${eventoId}`)
+        if (canManageCalendar) router.push(`/modifica-evento/${eventoId}`)
       }
       lastClickRef.current = null
     } else {
@@ -477,6 +490,7 @@ export default function CalendarioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           dataAppuntamento: `${dataSelezionata}T${appuntamento.ora || '10:00'}:00`,
+          dataPrimoContatto: todayIso,
           durataMinuti: 60,
           canalePrimoContatto: appuntamento.canale || null,
           esito: 'da_fare',
@@ -545,14 +559,16 @@ export default function CalendarioPage() {
             <Phone className="w-3.5 h-3.5 text-violet-600" />
             <span className="text-violet-700 font-medium text-sm">{appuntamentiMese} questo mese</span>
           </div>
-          <Button
-            onClick={() => router.push('/nuovo-evento')}
-            className="bg-amber-500 hover:bg-amber-600"
-            data-testid="nuovo-evento-btn"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nuovo Evento
-          </Button>
+          {canManageCalendar && (
+            <Button
+              onClick={() => router.push('/nuovo-evento')}
+              className="bg-amber-500 hover:bg-amber-600"
+              data-testid="nuovo-evento-btn"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nuovo Evento
+            </Button>
+          )}
         </div>
       </div>
 
@@ -707,7 +723,7 @@ export default function CalendarioPage() {
       {tooltip && <EventTooltip info={tooltip} onClose={() => setTooltip(null)} />}
 
       {/* Modal Appuntamento Rapido */}
-      {showAppuntamento && dataSelezionata && (
+      {showAppuntamento && dataSelezionata && canManageCalendar && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md" data-testid="modal-appuntamento">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -810,9 +826,11 @@ export default function CalendarioPage() {
                 })}
               </CardTitle>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => setShowAppuntamento(true)}>
-                  <Plus className="w-3.5 h-3.5 mr-1" />Appuntamento
-                </Button>
+                {canManageCalendar && (
+                  <Button size="sm" variant="outline" onClick={() => setShowAppuntamento(true)}>
+                    <Plus className="w-3.5 h-3.5 mr-1" />Appuntamento
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => setEventiDelGiorno([])}>
                   <X className="w-3.5 h-3.5" />
                 </Button>
@@ -850,15 +868,17 @@ export default function CalendarioPage() {
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statoLabel(e.stato)}`}>
                       {(isFirstContact ? e.canalePrimoContatto || 'primo contatto' : (isAppointment ? e.esito || 'da_fare' : e.stato))?.replace('_', ' ')}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-7 h-7 p-0"
-                      onClick={() => router.push(isAppointment ? `/appuntamenti?id=${e.id}` : isFirstContact ? '/clienti' : `/modifica-evento/${e.id}`)}
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </Button>
-                    {!isFirstContact && (
+                    {canManageCalendar && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-7 h-7 p-0"
+                        onClick={() => router.push(isAppointment ? `/appuntamenti?id=${e.id}` : isFirstContact ? '/clienti' : `/modifica-evento/${e.id}`)}
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    {canManageCalendar && !isFirstContact && (
                       <Button variant="ghost" size="sm" className="w-7 h-7 p-0 text-red-400 hover:text-red-600"
                         onClick={() => isAppointment ? annullaAppuntamento(e.id) : annullaEvento(e.id)}>
                         <Trash2 className="w-3.5 h-3.5" />
