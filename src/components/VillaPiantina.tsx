@@ -375,7 +375,6 @@ export default function VillaPiantina({
     emitChange({ immagine: url })
   }
 
-  // PATCH: posizione di default sempre visibile
   const aggiungiTavolo = () => {
     const nuovoId = Math.max(0, ...safeDisposizione.tavoli.map(t => t.id || 0)) + 1
     emitChange({
@@ -385,10 +384,28 @@ export default function VillaPiantina({
           id: nuovoId,
           numero: `T${nuovoId}`,
           posti: 8,
-          posizione: { xPerc: 0.12, yPerc: 0.12 }, // PATCH: fisso e visibile!
+          posizione: { xPerc: 0.12, yPerc: 0.12 },
           rotazione: 0,
           forma: 'rotondo',
           dimensionePerc: 0.03
+        }
+      ]
+    })
+  }
+
+  const aggiungiTavoloImperiale = () => {
+    const nuovoId = Math.max(0, ...safeDisposizione.tavoli.map(t => t.id || 0)) + 1
+    emitChange({
+      tavoli: [
+        ...safeDisposizione.tavoli,
+        {
+          id: nuovoId,
+          numero: `Imperiale ${nuovoId}`,
+          posti: 20,
+          posizione: { xPerc: 0.15, yPerc: 0.15 },
+          rotazione: 0,
+          forma: 'imperiale',
+          dimensionePerc: 0.04
         }
       ]
     })
@@ -403,7 +420,7 @@ export default function VillaPiantina({
           id: nuovoId,
           nome: `Stazione ${nuovoId}`,
           tipo: 'buffet',
-          posizione: { xPerc: 0.18, yPerc: 0.18 }, // PATCH: fisso e visibile!
+          posizione: { xPerc: 0.18, yPerc: 0.18 },
           rotazione: 0,
           dimensionePerc: { larghezzaPerc: 0.15, altezzaPerc: 0.06 }
         }
@@ -483,7 +500,14 @@ export default function VillaPiantina({
                 + Tavolo
               </button>
               <button
-                className="bg-white border text-gray-800 px-2 py-1.5 rounded-lg text-sm"
+                className="bg-amber-50 border border-amber-300 text-amber-800 px-2 py-1.5 rounded-lg text-sm"
+                onClick={aggiungiTavoloImperiale}
+                data-testid="piantina-aggiungi-imperiale-btn"
+              >
+                + Imperiale
+              </button>
+              <button
+                className="bg-white border text-gray-800 px-2 py-1.5 rounded-lg text-sm col-span-2"
                 onClick={aggiungiStazione}
                 data-testid="piantina-aggiungi-stazione-btn"
               >

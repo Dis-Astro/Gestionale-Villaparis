@@ -44,7 +44,7 @@ export default function AppShell({ children }: AppShellProps) {
         <footer className="border-t bg-white px-6 py-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-sm text-gray-500">
             <span>© 2026 Villa Paris Gestionale</span>
-            <span>v1.0.0</span>
+            <span>v2.0.0</span>
           </div>
         </footer>
       </div>

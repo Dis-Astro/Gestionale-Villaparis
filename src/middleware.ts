@@ -37,7 +37,8 @@ function isAllowedForWorker(pathname: string) {
     '/api/piantine',
     '/api/appuntamenti',
     '/api/auth/me',
-    '/api/auth/logout'
+    '/api/auth/logout',
+    '/api/meteo'
   ]
   return allowed.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
@@ -60,7 +61,8 @@ function isAllowedForReport(pathname: string, method: string) {
     '/api/presenze-villa',
     '/api/eventi',
     '/api/clienti',
-    '/api/appuntamenti'
+    '/api/appuntamenti',
+    '/api/meteo'
   ]
 
   if (!pathname.startsWith('/api/')) {

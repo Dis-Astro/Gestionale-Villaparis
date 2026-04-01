@@ -28,6 +28,8 @@ export default function GestionePiantinaPage() {
   const [evento, setEvento] = useState<any>(null)
   const [infoBlocco, setInfoBlocco] = useState<any>(null)
   const [disposizione, setDisposizione] = useState<{ tavoli: any[], stazioni: any[], immagine?: string, rotazioneImmagine?: number }>({ tavoli: [], stazioni: [], immagine: undefined, rotazioneImmagine: 0 })
+  const [disposizionePianoB, setDisposizionePianoB] = useState<{ tavoli: any[], stazioni: any[], immagine?: string, rotazioneImmagine?: number }>({ tavoli: [], stazioni: [], immagine: undefined, rotazioneImmagine: 0 })
+  const [pianoAttivo, setPianoAttivo] = useState<'A' | 'B'>('A')
   const [planimetrie, setPlanimetrie] = useState<{ nome: string; url: string }[]>([])
   const [eventiSimili, setEventiSimili] = useState<any[]>([])
   const [schemaDaCopiareId, setSchemaDaCopiareId] = useState('')
@@ -38,8 +40,13 @@ export default function GestionePiantinaPage() {
   const stampaRef = useRef<HTMLDivElement>(null)
 
   const aggiornaDisposizione = useCallback((nuova: any) => {
-    setDisposizione(JSON.parse(JSON.stringify(nuova)))
-  }, [])
+    const cloned = JSON.parse(JSON.stringify(nuova))
+    if (pianoAttivo === 'B') {
+      setDisposizionePianoB(cloned)
+    } else {
+      setDisposizione(cloned)
+    }
+  }, [pianoAttivo])
 
   const parseDisposizione = (raw: any) => {
     const parsed = typeof raw === 'string'
@@ -83,6 +90,8 @@ export default function GestionePiantinaPage() {
         }
 
         setDisposizione(parseDisposizione(data.disposizioneSala))
+        setDisposizionePianoB(parseDisposizione(data.disposizioneSalaPianoB))
+        if (data.pianoAttivo === 'B') setPianoAttivo('B')
       } catch (error) {
         console.error('Errore nel caricamento evento:', error)
       }
@@ -158,8 +167,13 @@ export default function GestionePiantinaPage() {
   const handleCopiaSchema = () => {
     const selected = eventiSimili.find((e) => String(e.id) === schemaDaCopiareId)
     if (!selected) return
-    setDisposizione(parseDisposizione(selected.disposizioneSala))
-    setStatus(`✅ Schema copiato da evento #${selected.id}`)
+    const parsed = parseDisposizione(selected.disposizioneSala)
+    if (pianoAttivo === 'B') {
+      setDisposizionePianoB(parsed)
+    } else {
+      setDisposizione(parsed)
+    }
+    setStatus(`Schema copiato da evento #${selected.id} nel Piano ${pianoAttivo}`)
     setTimeout(() => setStatus(''), 2000)
   }
 
@@ -209,7 +223,9 @@ export default function GestionePiantinaPage() {
         headers: { 'Content-Type': 'application/json', ...overrideHeaders },
         body: JSON.stringify({
           ...evento,
-          disposizioneSala: disposizione
+          disposizioneSala: disposizione,
+          disposizioneSalePianoB: disposizionePianoB,
+          pianoAttivo
         })
       })
 
@@ -240,9 +256,9 @@ export default function GestionePiantinaPage() {
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, width, height)
 
-    if (disposizione?.immagine) {
+    if (disposizioneCorrente?.immagine) {
       try {
-        const img = await loadImage(disposizione.immagine)
+        const img = await loadImage(disposizioneCorrente.immagine)
         const scale = Math.max(width / img.width, height / img.height)
         const drawW = img.width * scale
         const drawH = img.height * scale
@@ -255,7 +271,7 @@ export default function GestionePiantinaPage() {
     }
 
     // Stazioni
-    for (const stazione of disposizione?.stazioni || []) {
+    for (const stazione of disposizioneCorrente?.stazioni || []) {
       const x = (stazione.posizione?.xPerc || 0) * width
       const y = (stazione.posizione?.yPerc || 0) * height
       const w = (stazione.dimensionePerc?.larghezzaPerc || 0.15) * width
@@ -291,25 +307,50 @@ export default function GestionePiantinaPage() {
     }
 
     // Tavoli
-    for (const tavolo of disposizione?.tavoli || []) {
+    for (const tavolo of disposizioneCorrente?.tavoli || []) {
       const x = (tavolo.posizione?.xPerc || 0) * width
       const y = (tavolo.posizione?.yPerc || 0) * height
       const diameter = (tavolo.dimensionePerc || 0.03) * width
-      const radius = diameter / 2
+      const isImperiale = tavolo.forma === 'imperiale'
+      const tW = isImperiale ? diameter * 3 : diameter
+      const tH = isImperiale ? diameter * 0.8 : diameter
 
       ctx.save()
-      ctx.translate(x + radius, y + radius)
+      ctx.translate(x + tW / 2, y + tH / 2)
       ctx.rotate(((tavolo.rotazione || 0) * Math.PI) / 180)
 
-      ctx.fillStyle = '#f9fafb'
-      ctx.strokeStyle = '#6b7280'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.arc(0, 0, radius, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.stroke()
+      if (isImperiale) {
+        // Rettangolo arrotondato per imperiale
+        ctx.fillStyle = '#fef3c7'
+        ctx.strokeStyle = '#b45309'
+        ctx.lineWidth = 2
+        const r = 8
+        ctx.beginPath()
+        ctx.moveTo(-tW / 2 + r, -tH / 2)
+        ctx.lineTo(tW / 2 - r, -tH / 2)
+        ctx.quadraticCurveTo(tW / 2, -tH / 2, tW / 2, -tH / 2 + r)
+        ctx.lineTo(tW / 2, tH / 2 - r)
+        ctx.quadraticCurveTo(tW / 2, tH / 2, tW / 2 - r, tH / 2)
+        ctx.lineTo(-tW / 2 + r, tH / 2)
+        ctx.quadraticCurveTo(-tW / 2, tH / 2, -tW / 2, tH / 2 - r)
+        ctx.lineTo(-tW / 2, -tH / 2 + r)
+        ctx.quadraticCurveTo(-tW / 2, -tH / 2, -tW / 2 + r, -tH / 2)
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+      } else {
+        // Cerchio per tavolo rotondo
+        const radius = diameter / 2
+        ctx.fillStyle = '#f9fafb'
+        ctx.strokeStyle = '#6b7280'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(0, 0, radius, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+      }
 
-      ctx.fillStyle = '#111827'
+      ctx.fillStyle = isImperiale ? '#92400e' : '#111827'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.font = `${Math.max(11, diameter * 0.25)}px sans-serif`
@@ -383,7 +424,8 @@ export default function GestionePiantinaPage() {
     }
   }
 
-  const riepilogo = calcolaRiepilogoVarianti(disposizione)
+  const disposizioneCorrente = pianoAttivo === 'B' ? disposizionePianoB : disposizione
+  const riepilogo = calcolaRiepilogoVarianti(disposizioneCorrente)
   const eventiPreferiti = eventiSimili.filter((ev) => preferitiSchemaIds.includes(Number(ev.id)))
 
   if (!evento) {
@@ -489,6 +531,39 @@ export default function GestionePiantinaPage() {
         </Card>
       )}
 
+      {/* Toggle Piano A / Piano B */}
+      <Card className="border-amber-200 bg-amber-50/50" data-testid="piano-ab-card">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-900 text-sm">Piano Sala</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Gestisci due configurazioni alternative (es. interno/esterno, pioggia/sole)</p>
+            </div>
+            <div className="flex gap-1 bg-white rounded-lg border p-1" data-testid="piano-ab-toggle">
+              <button
+                onClick={() => setPianoAttivo('A')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${pianoAttivo === 'A' ? 'bg-amber-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                data-testid="piano-a-btn"
+              >
+                Piano A
+              </button>
+              <button
+                onClick={() => setPianoAttivo('B')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${pianoAttivo === 'B' ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                data-testid="piano-b-btn"
+              >
+                Piano B
+              </button>
+            </div>
+          </div>
+          {pianoAttivo === 'B' && (
+            <div className="mt-2 text-xs text-blue-700 bg-blue-50 rounded px-3 py-1.5 border border-blue-200" data-testid="piano-b-active-banner">
+              Stai modificando il <strong>Piano B</strong> (configurazione alternativa). Ricordati di salvare.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Istruzioni */}
       <Card className="bg-gray-50">
         <CardContent className="p-4 flex items-center gap-3">
@@ -557,14 +632,20 @@ export default function GestionePiantinaPage() {
         <CardContent className="p-4">
           <VillaPiantinaDnDWrapper>
             <VillaPiantina
-              disposizione={disposizione}
+              disposizione={disposizioneCorrente}
               onChange={aggiornaDisposizione}
               editabile={true}
               stampaRef={stampaRef}
               onStampa={handleStampaPlanimetria}
               planimetrie={planimetrie}
               onNuovaPlanimetria={handleUploadPlanimetriaGlobale}
-              onCambiaPlanimetria={(url) => setDisposizione((prev) => ({ ...prev, immagine: url }))}
+              onCambiaPlanimetria={(url) => {
+                if (pianoAttivo === 'B') {
+                  setDisposizionePianoB((prev) => ({ ...prev, immagine: url }))
+                } else {
+                  setDisposizione((prev) => ({ ...prev, immagine: url }))
+                }
+              }}
               onDeletePlanimetria={handleDeletePlanimetriaGlobale}
               variantiAttive={variantiAttive}
             />

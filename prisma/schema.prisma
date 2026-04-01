@@ -21,6 +21,8 @@ model Evento {
   struttura        Json?
   dateProposte     Json?
   disposizioneSala Json?
+  disposizioneSalaPianoB Json?
+  pianoAttivo      String?
   
   // Campi report aziendale
   luogo            String?
@@ -149,6 +151,7 @@ model PresenzaVilla {
   motivoVisita    String
   mansioneSvolta  String
   note            String?
+  meteo           String?
   createdByUserId String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

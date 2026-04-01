@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
         motivoVisita: body.motivoVisita.trim(),
         mansioneSvolta: body.mansioneSvolta.trim(),
         note: body.note?.trim() || null,
+        meteo: body.meteo?.trim() || null,
         createdByUserId: auth.user.id
       },
       include: {

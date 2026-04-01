@@ -211,7 +211,7 @@ export interface TavoloEvento {
   posti: number                           // Numero posti
   posizione: PosizionePercentuale
   rotazione?: number
-  forma?: 'rotondo' | 'rettangolare' | 'quadrato' | string
+  forma?: 'rotondo' | 'rettangolare' | 'quadrato' | 'imperiale' | string
   dimensionePerc: number
   
   // Varianti per questo tavolo: Record<VariantId, quantità>

@@ -288,6 +288,8 @@ export async function PUT(req: NextRequest) {
     if (has(body, 'menu')) updateData.menu = dbJsonSerialize(body.menu)
     if (has(body, 'struttura')) updateData.struttura = dbJsonSerialize(body.struttura)
     if (has(body, 'disposizioneSala')) updateData.disposizioneSala = dbJsonSerialize(body.disposizioneSala)
+    if (has(body, 'disposizioneSalePianoB')) updateData.disposizioneSalaPianoB = dbJsonSerialize(body.disposizioneSalePianoB)
+    if (has(body, 'pianoAttivo')) updateData.pianoAttivo = body.pianoAttivo || null
     if (has(body, 'dateProposte')) updateData.dateProposte = dbJsonSerialize(body.dateProposte ?? [])
     if (has(body, 'luogo')) updateData.luogo = body.luogo || null
     if (has(body, 'prezzo')) updateData.prezzo = body.prezzo ? parseFloat(body.prezzo) : null

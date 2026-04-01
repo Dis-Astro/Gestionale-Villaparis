@@ -10,7 +10,7 @@ export type Tavolo = {
   posti: number
   posizione: { xPerc: number; yPerc: number } // Coordinate in percentuale
   rotazione?: number
-  forma?: string // 'rotondo', 'rettangolare', ecc
+  forma?: string // 'rotondo', 'rettangolare', 'imperiale', ecc
   dimensionePerc: number // Percentuale rispetto a larghezza container
   
   // Varianti alimentari per questo tavolo
