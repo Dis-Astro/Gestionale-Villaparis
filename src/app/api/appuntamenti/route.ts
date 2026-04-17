@@ -4,6 +4,7 @@ import { dbJsonParse, dbJsonSerialize } from '@/lib/db-json'
 import { actorFromHeaders, writeAuditLog } from '@/lib/audit'
 import { computeExtraUnlock, computeScadenzaOpzione, normalizeStatoOpzione } from '@/lib/appuntamenti'
 import { requireAuth } from '@/lib/auth'
+import { syncAppuntamentoToGcal, removeAppuntamentoFromGcal } from '@/lib/google-calendar-sync'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -286,6 +287,9 @@ export async function POST(req: NextRequest) {
       actor
     })
 
+    // Sync automatico con Google Calendar
+    syncAppuntamentoToGcal(created.id).catch(() => {})
+
     return NextResponse.json(normalizeAppuntamentoOut(created))
   } catch (error) {
     console.error('Errore POST appuntamento:', error)
@@ -387,6 +391,9 @@ export async function PUT(req: NextRequest) {
       actor
     })
 
+    // Sync automatico con Google Calendar
+    syncAppuntamentoToGcal(id).catch(() => {})
+
     return NextResponse.json(normalizeAppuntamentoOut(updated))
   } catch (error) {
     console.error('Errore PUT appuntamento:', error)
@@ -411,6 +418,9 @@ export async function DELETE(req: NextRequest) {
 
     const existing = await prisma.appuntamento.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Appuntamento non trovato' }, { status: 404 })
+
+    // Rimuovi da Google Calendar prima di cancellare
+    removeAppuntamentoFromGcal(existing.gcalEventId).catch(() => {})
 
     await prisma.appuntamento.delete({ where: { id } })
 

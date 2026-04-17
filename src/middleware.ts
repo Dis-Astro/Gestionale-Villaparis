@@ -96,8 +96,9 @@ export function middleware(req: NextRequest) {
 
   const isLoginPath = pathname === '/login'
   const isAuthApi = pathname.startsWith('/api/auth/login')
+  const isOAuthCallback = pathname.startsWith('/api/oauth/google-calendar/callback')
 
-  if (isLoginPath || isAuthApi) return NextResponse.next()
+  if (isLoginPath || isAuthApi || isOAuthCallback) return NextResponse.next()
 
   const token = req.cookies.get('vp_token')?.value
   if (!token) {

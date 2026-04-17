@@ -8,6 +8,7 @@ import {
   OVERRIDE_HEADERS
 } from '@/lib/blocco-evento'
 import { actorFromHeaders, writeAuditLog } from '@/lib/audit'
+import { syncEventoToGcal, removeEventoFromGcal } from '@/lib/google-calendar-sync'
 import { dbJsonParse, dbJsonSerialize } from '@/lib/db-json'
 import { requireAuth } from '@/lib/auth'
 
@@ -332,6 +333,9 @@ export async function PUT(req: NextRequest) {
       }
     })
 
+    // Sincronizza automaticamente con Google Calendar (non bloccante)
+    syncEventoToGcal(id).catch(() => {})
+
     return NextResponse.json(evento)
   } catch (error) {
     console.error('Errore aggiornamento evento:', error)
@@ -371,6 +375,9 @@ export async function DELETE(req: NextRequest) {
       oldValue: before,
       actor
     })
+
+    // Rimuovi da Google Calendar (non bloccante)
+    removeEventoFromGcal(before.gcalEventId).catch(() => {})
 
     return NextResponse.json(deleted)
   } catch (error) {

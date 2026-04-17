@@ -31,6 +31,7 @@ model Evento {
   dataPrimoContatto    DateTime?
   canalePrimoContatto  String?
   appuntamentoOrigineId Int?
+  gcalEventId      String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -118,6 +119,7 @@ model User {
   interazioniGestite  InterazioneCliente[]
   auditLogs           AuditLog[]
   presenzeRegistrate  PresenzaVilla[]     @relation("CreatedByPresenze")
+  googleCalendar      GoogleCalendarConfig? @relation("GoogleCalendarUser")
 }
 
 model PresenzaVilla {
@@ -163,6 +165,7 @@ model Appuntamento {
 
   operatoreId         String?
   operatore           User?               @relation("OperatoreAppuntamenti", fields: [operatoreId], references: [id], onDelete: SetNull)
+  gcalEventId         String?
 
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
@@ -236,4 +239,36 @@ model EventoCliente {
   eventoId   Int
   cliente    Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   clienteId  Int
+}
+
+
+model GoogleCalendarConfig {
+  id              Int      @id @default(autoincrement())
+  userId          String   @unique
+  user            User     @relation("GoogleCalendarUser", fields: [userId], references: [id], onDelete: Cascade)
+  accessToken     String
+  refreshToken    String?
+  tokenExpiry     DateTime?
+  calendarId      String   @default("primary")
+  syncToken       String?
+  connectedAt     DateTime @default(now())
+  lastSyncAt      DateTime?
+  isActive        Boolean  @default(true)
+}
+
+model GoogleCalendarChange {
+  id              Int      @id @default(autoincrement())
+  gcalEventId     String
+  tipoRisorsa     String
+  risorsaId       Int?
+  tipoModifica    String
+  dettagli        String?
+  modificatoDa    String?
+  stato           String   @default("pending")
+  validatoDa      String?
+  validatoAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([stato])
+  @@index([createdAt])
 }
