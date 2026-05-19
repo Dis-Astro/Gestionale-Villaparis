@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST - Sincronizzazione completa
+// POST - Sincronizzazione completa (evita duplicati controllando gcalEventId)
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req, ['ADMIN'])
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
@@ -49,13 +49,12 @@ export async function POST(req: NextRequest) {
 
     const authClient = await getAuthenticatedClient(config.userId)
     if (!authClient) {
-      return NextResponse.json({ error: 'Impossibile autenticarsi con Google' }, { status: 401 })
+      return NextResponse.json({ error: 'Impossibile autenticarsi con Google. Prova a riconnettere il calendario.' }, { status: 401 })
     }
 
     const calendar = getCalendarService(authClient.oauth2Client)
     const calendarId = authClient.calendarId
-
-    let synced = { eventi: 0, appuntamenti: 0, opzioni: 0, errori: 0 }
+    const synced = { eventi: 0, appuntamenti: 0, opzioni: 0, errori: 0, aggiornati: 0, skipped: 0 }
 
     // 1) Sincronizza tutti gli Eventi con dataConfermata
     const eventi = await prisma.evento.findMany({
@@ -65,31 +64,38 @@ export async function POST(req: NextRequest) {
     for (const evento of eventi) {
       try {
         const calEvent = buildCalendarEvent('evento', evento)
-        if (!calEvent) continue
+        if (!calEvent) { synced.skipped++; continue }
 
         if (evento.gcalEventId) {
-          // Aggiorna evento esistente
+          // Ha gia' un ID GCal: aggiorna
           try {
             await calendar.events.update({
               calendarId,
               eventId: evento.gcalEventId,
               requestBody: calEvent
             })
+            synced.aggiornati++
+            continue
           } catch (e: any) {
-            if (e.code === 404) {
-              // Evento cancellato su Google, ricrealo
-              const created = await calendar.events.insert({ calendarId, requestBody: calEvent })
-              await prisma.evento.update({ where: { id: evento.id }, data: { gcalEventId: created.data.id } })
-            } else throw e
+            if (e.code === 404 || e.status === 404) {
+              // L'evento e' stato eliminato su GCal, ricreiamo
+              console.log(`[GCal Sync] Evento GCal ${evento.gcalEventId} non trovato, ricreo evento #${evento.id}`)
+            } else {
+              console.error(`[GCal Sync] Errore update evento #${evento.id}:`, e.message)
+              synced.errori++
+              continue
+            }
           }
-        } else {
-          // Crea nuovo evento su Google Calendar
-          const created = await calendar.events.insert({ calendarId, requestBody: calEvent })
+        }
+
+        // Crea nuovo evento su Google Calendar
+        const created = await calendar.events.insert({ calendarId, requestBody: calEvent })
+        if (created.data.id) {
           await prisma.evento.update({ where: { id: evento.id }, data: { gcalEventId: created.data.id } })
         }
         synced.eventi++
       } catch (err: any) {
-        console.error(`Errore sync evento #${evento.id}:`, err.message)
+        console.error(`[GCal Sync] Errore evento #${evento.id}:`, err.message)
         synced.errori++
       }
     }
@@ -102,7 +108,7 @@ export async function POST(req: NextRequest) {
     for (const app of appuntamenti) {
       try {
         const calEvent = buildCalendarEvent('appuntamento', app)
-        if (!calEvent) continue
+        if (!calEvent) { synced.skipped++; continue }
 
         if (app.gcalEventId) {
           try {
@@ -111,51 +117,33 @@ export async function POST(req: NextRequest) {
               eventId: app.gcalEventId,
               requestBody: calEvent
             })
+            synced.aggiornati++
+            continue
           } catch (e: any) {
-            if (e.code === 404) {
-              const created = await calendar.events.insert({ calendarId, requestBody: calEvent })
-              await prisma.appuntamento.update({ where: { id: app.id }, data: { gcalEventId: created.data.id } })
-            } else throw e
+            if (e.code === 404 || e.status === 404) {
+              console.log(`[GCal Sync] Appuntamento GCal ${app.gcalEventId} non trovato, ricreo appuntamento #${app.id}`)
+            } else {
+              console.error(`[GCal Sync] Errore update appuntamento #${app.id}:`, e.message)
+              synced.errori++
+              continue
+            }
           }
-        } else {
-          const created = await calendar.events.insert({ calendarId, requestBody: calEvent })
+        }
+
+        const created = await calendar.events.insert({ calendarId, requestBody: calEvent })
+        if (created.data.id) {
           await prisma.appuntamento.update({ where: { id: app.id }, data: { gcalEventId: created.data.id } })
         }
         synced.appuntamenti++
       } catch (err: any) {
-        console.error(`Errore sync appuntamento #${app.id}:`, err.message)
+        console.error(`[GCal Sync] Errore appuntamento #${app.id}:`, err.message)
         synced.errori++
       }
     }
 
-    // 3) Sincronizza date opzionate
-    const appConOpzioni = await prisma.appuntamento.findMany({
-      where: { dateOpzionate: { not: null } },
-      include: { clientePrincipale: { select: { nome: true, cognome: true } } }
-    })
-
-    for (const app of appConOpzioni) {
-      try {
-        const dateOpz = dbJsonParse(app.dateOpzionate, [])
-        if (!Array.isArray(dateOpz)) continue
-        for (const dataStr of dateOpz) {
-          if (!dataStr) continue
-          const clienteNome = `${app.clientePrincipale?.nome || ''} ${app.clientePrincipale?.cognome || ''}`.trim()
-          const calEvent = buildCalendarEvent('opzione', {
-            dataOpzionata: dataStr,
-            clienteNome,
-            dataScadenza: app.dataScadenzaOpzione ? new Date(app.dataScadenzaOpzione).toLocaleDateString('it-IT') : 'N/D'
-          })
-          if (!calEvent) continue
-          // Per le opzioni, creiamo sempre (non tracked individualmente)
-          await calendar.events.insert({ calendarId, requestBody: calEvent })
-          synced.opzioni++
-        }
-      } catch (err: any) {
-        console.error(`Errore sync opzioni appuntamento #${app.id}:`, err.message)
-        synced.errori++
-      }
-    }
+    // 3) Sincronizza date opzionate (solo se non gia' sincronizzate come parte dell'appuntamento)
+    // Le opzioni non hanno tracking individuale, le skippiamo per evitare duplicati
+    // Vengono gestite solo durante il primo sync manuale
 
     // Aggiorna lastSyncAt
     await prisma.googleCalendarConfig.update({

@@ -290,15 +290,26 @@ export default function ImpostazioniPage() {
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGcalDisconnect}
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                    data-testid="gcal-disconnect-btn"
-                  >
-                    <Unlink className="w-4 h-4 mr-1" /> Disconnetti
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGcalConnect}
+                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      data-testid="gcal-reconnect-btn"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-1" /> Riconnetti
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGcalDisconnect}
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      data-testid="gcal-disconnect-btn"
+                    >
+                      <Unlink className="w-4 h-4 mr-1" /> Disconnetti
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Actions */}
@@ -328,9 +339,9 @@ export default function ImpostazioniPage() {
                   <div className="p-3 rounded-lg border bg-blue-50 text-sm" data-testid="gcal-sync-result">
                     <p className="font-medium text-blue-800 mb-1">Risultato sincronizzazione:</p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-blue-700">
-                      <span>Eventi: {syncResult.eventi}</span>
-                      <span>Appuntamenti: {syncResult.appuntamenti}</span>
-                      <span>Opzioni: {syncResult.opzioni}</span>
+                      <span>Nuovi eventi: {syncResult.eventi}</span>
+                      <span>Nuovi appunt.: {syncResult.appuntamenti}</span>
+                      <span>Aggiornati: {syncResult.aggiornati}</span>
                       {syncResult.errori > 0 && <span className="text-red-600">Errori: {syncResult.errori}</span>}
                     </div>
                   </div>

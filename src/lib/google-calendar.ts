@@ -5,8 +5,7 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 
 function getRedirectUri() {
-  // In production, use the actual domain
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   return `${baseUrl}/api/oauth/google-calendar/callback`
 }
 
@@ -34,14 +33,42 @@ export async function getAuthenticatedClient(userId: string) {
     expiry_date: config.tokenExpiry ? config.tokenExpiry.getTime() : undefined
   })
 
-  // Auto-refresh se scaduto
+  // Se il token è scaduto o sta per scadere, refresh esplicito
+  const now = Date.now()
+  const expiry = config.tokenExpiry ? config.tokenExpiry.getTime() : 0
+  if (expiry > 0 && expiry - now < 5 * 60 * 1000) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken()
+      const updateData: any = {}
+      if (credentials.access_token) updateData.accessToken = credentials.access_token
+      if (credentials.expiry_date) updateData.tokenExpiry = new Date(credentials.expiry_date)
+      if (credentials.refresh_token) updateData.refreshToken = credentials.refresh_token
+      if (Object.keys(updateData).length > 0) {
+        await prisma.googleCalendarConfig.update({ where: { userId }, data: updateData })
+      }
+      oauth2Client.setCredentials(credentials)
+    } catch (err: any) {
+      console.error('[GCal] Errore refresh token:', err.message)
+      // Se il refresh fallisce con invalid_grant, disattiva la connessione
+      if (err.message?.includes('invalid_grant') || err.response?.data?.error === 'invalid_grant') {
+        await prisma.googleCalendarConfig.update({ where: { userId }, data: { isActive: false } })
+        return null
+      }
+    }
+  }
+
+  // Listener per eventuali refresh automatici durante le chiamate API
   oauth2Client.on('tokens', async (tokens) => {
-    const updateData: any = {}
-    if (tokens.access_token) updateData.accessToken = tokens.access_token
-    if (tokens.expiry_date) updateData.tokenExpiry = new Date(tokens.expiry_date)
-    if (tokens.refresh_token) updateData.refreshToken = tokens.refresh_token
-    if (Object.keys(updateData).length > 0) {
-      await prisma.googleCalendarConfig.update({ where: { userId }, data: updateData })
+    try {
+      const updateData: any = {}
+      if (tokens.access_token) updateData.accessToken = tokens.access_token
+      if (tokens.expiry_date) updateData.tokenExpiry = new Date(tokens.expiry_date)
+      if (tokens.refresh_token) updateData.refreshToken = tokens.refresh_token
+      if (Object.keys(updateData).length > 0) {
+        await prisma.googleCalendarConfig.update({ where: { userId }, data: updateData })
+      }
+    } catch (e) {
+      console.error('[GCal] Errore salvataggio token aggiornato:', e)
     }
   })
 
@@ -54,13 +81,20 @@ export function getCalendarService(oauth2Client: any) {
 
 // Colori Google Calendar per tipo evento
 const COLORI_TIPO: Record<string, string> = {
-  matrimonio: '11',    // Rosso (Tomato)
-  battesimo: '9',      // Blu (Blueberry)
-  comunione: '5',      // Giallo (Banana)
-  cresima: '10',       // Verde (Basil)
-  compleanno: '6',     // Arancione (Tangerine)
-  aziendale: '7',      // Grigio (Graphite)
-  altro: '8',          // Viola (Grape)
+  matrimonio: '11',
+  battesimo: '9',
+  comunione: '5',
+  cresima: '10',
+  compleanno: '6',
+  aziendale: '7',
+  altro: '8',
+}
+
+// Calcola il giorno successivo (per end date eventi tutto il giorno)
+function nextDay(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00Z')
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
 }
 
 export function buildCalendarEvent(
@@ -69,7 +103,7 @@ export function buildCalendarEvent(
 ) {
   if (tipo === 'evento') {
     const colorId = COLORI_TIPO[data.tipo?.toLowerCase()] || '8'
-    const summary = `[EVENTO] ${data.titolo}`
+    const summary = `[EVENTO] ${data.titolo || 'Evento'}`
     const description = [
       `Tipo: ${data.tipo || 'N/D'}`,
       `Stato: ${data.stato || 'N/D'}`,
@@ -78,24 +112,26 @@ export function buildCalendarEvent(
       data.luogo ? `Luogo: ${data.luogo}` : null,
       data.note ? `Note: ${data.note}` : null,
       `---`,
-      `Gestito da Villa Paris`
+      `Villa Paris Gestionale (ID: ${data.id || ''})`
     ].filter(Boolean).join('\n')
 
     if (data.dataConfermata) {
-      const date = new Date(data.dataConfermata)
+      const dateStr = new Date(data.dataConfermata).toISOString().slice(0, 10)
       return {
         summary,
         description,
         colorId,
-        start: { date: date.toISOString().slice(0, 10), timeZone: 'Europe/Rome' },
-        end: { date: date.toISOString().slice(0, 10), timeZone: 'Europe/Rome' },
+        start: { date: dateStr, timeZone: 'Europe/Rome' },
+        end: { date: nextDay(dateStr), timeZone: 'Europe/Rome' },
       }
     }
     return null
   }
 
   if (tipo === 'appuntamento') {
+    if (!data.dataAppuntamento) return null
     const date = new Date(data.dataAppuntamento)
+    if (isNaN(date.getTime())) return null
     const durata = data.durataMinuti || 60
     const endDate = new Date(date.getTime() + durata * 60 * 1000)
     const clienteNome = data.clientePrincipale
@@ -109,7 +145,7 @@ export function buildCalendarEvent(
         data.esito ? `Esito: ${data.esito}` : null,
         data.noteColloquio ? `Note: ${data.noteColloquio}` : null,
         `---`,
-        `Gestito da Villa Paris`
+        `Villa Paris Gestionale (ID: ${data.id || ''})`
       ].filter(Boolean).join('\n'),
       colorId: '3',
       start: { dateTime: date.toISOString(), timeZone: 'Europe/Rome' },
@@ -118,20 +154,20 @@ export function buildCalendarEvent(
   }
 
   if (tipo === 'opzione') {
-    const date = new Date(data.dataOpzionata)
+    if (!data.dataOpzionata) return null
+    const dateStr = new Date(data.dataOpzionata).toISOString().slice(0, 10)
     return {
       summary: `[OPZIONE] Data opzionata - ${data.clienteNome || 'N/D'}`,
-      description: `Data opzionata per potenziale evento.\nScadenza opzione: ${data.dataScadenza || 'N/D'}\n---\nGestito da Villa Paris`,
+      description: `Data opzionata per potenziale evento.\nScadenza opzione: ${data.dataScadenza || 'N/D'}\n---\nVilla Paris Gestionale`,
       colorId: '5',
-      start: { date: date.toISOString().slice(0, 10), timeZone: 'Europe/Rome' },
-      end: { date: date.toISOString().slice(0, 10), timeZone: 'Europe/Rome' },
+      start: { date: dateStr, timeZone: 'Europe/Rome' },
+      end: { date: nextDay(dateStr), timeZone: 'Europe/Rome' },
     }
   }
 
   return null
 }
 
-// Recupera la configurazione attiva (la prima trovata con isActive=true)
 export async function getActiveConfig() {
   return prisma.googleCalendarConfig.findFirst({
     where: { isActive: true },

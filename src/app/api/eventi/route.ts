@@ -131,6 +131,9 @@ export async function POST(req: NextRequest) {
       actor
     })
 
+    // Sincronizza con Google Calendar alla creazione
+    syncEventoToGcal(evento.id).catch(() => {})
+
     console.log('POST /api/eventi - Evento creato ID:', evento.id, 'Clienti:', clienteIds.length)
     return NextResponse.json(evento)
   } catch (error) {
