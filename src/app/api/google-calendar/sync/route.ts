@@ -56,14 +56,19 @@ export async function POST(req: NextRequest) {
     const calendarId = authClient.calendarId
     const synced = { eventi: 0, appuntamenti: 0, opzioni: 0, errori: 0, aggiornati: 0, skipped: 0 }
 
-    // 1) Sincronizza tutti gli Eventi con dataConfermata
-    const eventi = await prisma.evento.findMany({
-      where: { dataConfermata: { not: null } }
-    })
+    // 1) Sincronizza tutti gli Eventi (con data confermata o date proposte)
+    const eventi = await prisma.evento.findMany()
 
     for (const evento of eventi) {
       try {
-        const calEvent = buildCalendarEvent('evento', evento)
+        // Parsa dateProposte se e' una stringa JSON
+        const eventoData = {
+          ...evento,
+          dateProposte: typeof evento.dateProposte === 'string'
+            ? dbJsonParse(evento.dateProposte, [])
+            : (evento.dateProposte || [])
+        }
+        const calEvent = buildCalendarEvent('evento', eventoData)
         if (!calEvent) { synced.skipped++; continue }
 
         if (evento.gcalEventId) {

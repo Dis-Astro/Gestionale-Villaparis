@@ -1,5 +1,6 @@
 import { getActiveConfig, getAuthenticatedClient, getCalendarService, buildCalendarEvent } from '@/lib/google-calendar'
 import prisma from '@/lib/prisma'
+import { dbJsonParse } from '@/lib/db-json'
 
 async function getCalendarOrNull() {
   try {
@@ -24,7 +25,14 @@ export async function syncEventoToGcal(eventoId: number) {
     const evento = await prisma.evento.findUnique({ where: { id: eventoId } })
     if (!evento) return
 
-    const calEvent = buildCalendarEvent('evento', evento)
+    // Parsa dateProposte (stringa JSON in SQLite)
+    const eventoData = {
+      ...evento,
+      dateProposte: typeof evento.dateProposte === 'string'
+        ? dbJsonParse(evento.dateProposte, [])
+        : (evento.dateProposte || [])
+    }
+    const calEvent = buildCalendarEvent('evento', eventoData)
 
     if (!calEvent) {
       // Nessuna data confermata: rimuovi da GCal se esisteva

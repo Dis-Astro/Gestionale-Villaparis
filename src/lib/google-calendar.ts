@@ -103,10 +103,25 @@ export function buildCalendarEvent(
 ) {
   if (tipo === 'evento') {
     const colorId = COLORI_TIPO[data.tipo?.toLowerCase()] || '8'
-    const summary = `[EVENTO] ${data.titolo || 'Evento'}`
+    const isConfermato = !!data.dataConfermata
+    
+    // Determina la data dell'evento: dataConfermata > prima dateProposte
+    let eventDate: Date | null = null
+    if (data.dataConfermata) {
+      eventDate = new Date(data.dataConfermata)
+    } else if (data.dateProposte && Array.isArray(data.dateProposte) && data.dateProposte.length > 0) {
+      eventDate = new Date(data.dateProposte[0])
+    }
+    
+    if (!eventDate || isNaN(eventDate.getTime())) return null
+
+    const statoLabel = isConfermato ? 'CONFERMATO' : (data.stato || 'in_attesa').toUpperCase()
+    const prefix = isConfermato ? '[EVENTO]' : '[EVENTO - ' + statoLabel + ']'
+    const summary = `${prefix} ${data.titolo || 'Evento'}`
     const description = [
       `Tipo: ${data.tipo || 'N/D'}`,
       `Stato: ${data.stato || 'N/D'}`,
+      !isConfermato ? `Data proposta (non confermata)` : `Data confermata`,
       data.personePreviste ? `Invitati: ${data.personePreviste}` : null,
       data.fascia ? `Fascia: ${data.fascia}` : null,
       data.luogo ? `Luogo: ${data.luogo}` : null,
@@ -115,17 +130,14 @@ export function buildCalendarEvent(
       `Villa Paris Gestionale (ID: ${data.id || ''})`
     ].filter(Boolean).join('\n')
 
-    if (data.dataConfermata) {
-      const dateStr = new Date(data.dataConfermata).toISOString().slice(0, 10)
-      return {
-        summary,
-        description,
-        colorId,
-        start: { date: dateStr, timeZone: 'Europe/Rome' },
-        end: { date: nextDay(dateStr), timeZone: 'Europe/Rome' },
-      }
+    const dateStr = eventDate.toISOString().slice(0, 10)
+    return {
+      summary,
+      description,
+      colorId,
+      start: { date: dateStr, timeZone: 'Europe/Rome' },
+      end: { date: nextDay(dateStr), timeZone: 'Europe/Rome' },
     }
-    return null
   }
 
   if (tipo === 'appuntamento') {
