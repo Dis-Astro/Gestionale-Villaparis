@@ -135,8 +135,8 @@ export function buildCalendarEvent(
       summary,
       description,
       colorId,
-      start: { date: dateStr, timeZone: 'Europe/Rome' },
-      end: { date: nextDay(dateStr), timeZone: 'Europe/Rome' },
+      start: { date: dateStr },
+      end: { date: nextDay(dateStr) },
     }
   }
 
@@ -172,8 +172,8 @@ export function buildCalendarEvent(
       summary: `[OPZIONE] Data opzionata - ${data.clienteNome || 'N/D'}`,
       description: `Data opzionata per potenziale evento.\nScadenza opzione: ${data.dataScadenza || 'N/D'}\n---\nVilla Paris Gestionale`,
       colorId: '5',
-      start: { date: dateStr, timeZone: 'Europe/Rome' },
-      end: { date: nextDay(dateStr), timeZone: 'Europe/Rome' },
+      start: { date: dateStr },
+      end: { date: nextDay(dateStr) },
     }
   }
 

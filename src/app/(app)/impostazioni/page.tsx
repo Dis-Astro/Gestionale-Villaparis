@@ -57,6 +57,7 @@ export default function ImpostazioniPage() {
   const [gcalChecking, setGcalChecking] = useState(false)
   const [gcalStatus, setGcalStatus] = useState('')
   const [syncResult, setSyncResult] = useState<any>(null)
+  const [syncErrors, setSyncErrors] = useState<string[] | null>(null)
 
   // Load settings and role
   useEffect(() => {
@@ -136,13 +137,17 @@ export default function ImpostazioniPage() {
   const handleSync = async () => {
     setGcalSyncing(true)
     setSyncResult(null)
+    setSyncErrors(null)
     setGcalStatus('')
     try {
       const res = await fetch('/api/google-calendar/sync', { method: 'POST' })
       const data = await res.json()
       if (res.ok) {
         setSyncResult(data.synced)
-        setGcalStatus('Sincronizzazione completata!')
+        setSyncErrors(data.erroriDettaglio || null)
+        setGcalStatus(data.synced?.errori > 0
+          ? `Sincronizzazione completata con ${data.synced.errori} errori`
+          : 'Sincronizzazione completata!')
         fetchGcalStatus()
       } else {
         setGcalStatus(`Errore: ${data.error}`)
@@ -342,8 +347,19 @@ export default function ImpostazioniPage() {
                       <span>Nuovi eventi: {syncResult.eventi}</span>
                       <span>Nuovi appunt.: {syncResult.appuntamenti}</span>
                       <span>Aggiornati: {syncResult.aggiornati}</span>
-                      {syncResult.errori > 0 && <span className="text-red-600">Errori: {syncResult.errori}</span>}
+                      <span>Saltati: {syncResult.skipped}</span>
+                      {syncResult.errori > 0 && <span className="text-red-600 col-span-2">Errori: {syncResult.errori}</span>}
                     </div>
+                  </div>
+                )}
+                {syncErrors && syncErrors.length > 0 && (
+                  <div className="p-3 rounded-lg border bg-red-50 text-sm" data-testid="gcal-sync-errors">
+                    <p className="font-medium text-red-800 mb-1">Dettaglio errori:</p>
+                    <ul className="list-disc pl-4 text-red-700 space-y-1">
+                      {syncErrors.map((err: string, i: number) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
